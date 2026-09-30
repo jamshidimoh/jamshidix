@@ -2,12 +2,12 @@
 set -euo pipefail
 
 VERSION="1.14.1"
-BASE="https://github.com/SagerNet/sing-box/releases/download/v\${VERSION}"
+BASE="https://github.com/SagerNet/sing-box/releases/download/v${VERSION}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 curl --fail --silent --show-error --location \
-  "$BASE/sing-box-\${VERSION}-linux-amd64.tar.gz" \
+  "$BASE/sing-box-${VERSION}-linux-amd64.tar.gz" \
   -o "$TMP/sing-box.tar.gz"
 tar -xzf "$TMP/sing-box.tar.gz" -C "$TMP"
 
@@ -57,4 +57,4 @@ PY
 "$SB" check -c "$CHECK_DIR/server.json"
 "$SB" check -c "$CHECK_DIR/client.json"
 
-echo "sing-box \${VERSION} schema validation passed."
+echo "sing-box ${VERSION} schema validation passed."
