@@ -4,7 +4,7 @@ set -euo pipefail
 # Jamshidix - server bootstrap.
 # Stable release pinned to sing-box v1.14.1.
 SING_BOX_VERSION="1.14.1"
-SING_BOX_BASE="https://github.com/SagerNet/sing-box/releases/download/v\${SING_BOX_VERSION}"
+SING_BOX_BASE="https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}"
 
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates jq openssl tar iptables
@@ -18,7 +18,7 @@ esac
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
-ARCHIVE="sing-box-\${SING_BOX_VERSION}-linux-\${SB_ARCH}.tar.gz"
+ARCHIVE="sing-box-${SING_BOX_VERSION}-linux-${SB_ARCH}.tar.gz"
 URL="\${SING_BOX_BASE}/\${ARCHIVE}"
 
 curl --fail --silent --show-error --location "$URL" -o "$TMP_DIR/$ARCHIVE"
@@ -70,5 +70,5 @@ SERVICE
 
 sudo systemctl daemon-reload
 
-echo "sing-box \${SING_BOX_VERSION} installed."
+echo "sing-box ${SING_BOX_VERSION} installed."
 echo "Next: generate REALITY keys, render server.json, validate it, then enable the service."
