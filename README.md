@@ -46,13 +46,14 @@ Windows kill-switch می‌تواند outbound پیش‌فرض سیستم را �
 
 ## فایل اجرایی Windows
 
-فایل `Jamshidix.exe` یک launcher بومی Windows است که نصب sing-box رسمی، ساخت client.json، validation، اجرای TUN و status را مدیریت می‌کند. برای kill-switch و autostart، اسکریپت‌های PowerShell موجود باقی مانده‌اند.
+فایل `Jamshidix.exe` به‌صورت GUI و one-click ساخته می‌شود: با دوبارکلیک، در صورت نیاز UAC را می‌گیرد، sing-box رسمی را بررسی/نصب می‌کند، `client.json` را پیدا و اعتبارسنجی می‌کند و TUN را در پس‌زمینه اجرا می‌کند. برای استفاده، `client.json` واقعی را یک‌بار کنار EXE قرار دهید یا در `%ProgramData%\\Jamshidix\\client.json` بسازید. برای kill-switch و autostart، اسکریپت‌های PowerShell موجود باقی مانده‌اند.
 
 Build مستقل با Go انجام می‌شود و SHA-256 آرشیو sing-box قبل از نصب بررسی می‌شود.
 
 ## اسناد
 
 - `docs/quickstart.md`
+- `cmd/jamshidix/README.md` — اجرای one-click ویندوز
 - `docs/setup-oci.md`
 - `docs/architecture.md`
 - `docs/provider-matrix.md`
