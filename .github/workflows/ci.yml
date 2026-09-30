@@ -73,6 +73,9 @@ jobs:
         shell: bash
         run: bash ./scripts/validate_singbox.sh
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
       - name: Terraform format
         shell: bash
         run: terraform fmt -check -recursive infra/oci
