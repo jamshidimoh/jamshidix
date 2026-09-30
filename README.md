@@ -6,44 +6,64 @@
 
 هیچ اشتراک، VPS پولی، API پولی، دامنهٔ پولی یا VPN تجاری نباید برای اجرای dataplane لازم باشد. زیرساخت فقط از سهمیهٔ رسمی رایگان provider استفاده می‌کند.
 
-رایگان بودن provider به معنی تضمین ظرفیت، uptime یا امکان ثبت‌نام برای همهٔ کاربران نیست.
+این شرط به معنی تضمین همیشگیِ ظرفیت یا امکان ثبت‌نام برای همهٔ کاربران نیست.
 
 ## معماری
 
 `Windows → sing-box TUN → VLESS + REALITY → Free VM → Internet`
 
-Chrome در حالت TUN به proxy جداگانه نیاز ندارد. mixed proxy محلی روی 127.0.0.1:2080 نیز برای fallback وجود دارد.
+Chrome در حالت TUN به proxy جداگانه نیاز ندارد. mixed proxy محلی روی `127.0.0.1:2080` برای برنامه‌های سازگار وجود دارد.
 
-نسخهٔ stable مورد استفاده در این ریپو `sing-box 1.14.1` است. نسخهٔ 1.15.x فعلاً alpha است. citeturn482847search6
-
-REALITY در sing-box از private key در server و public key در client استفاده می‌کند. citeturn248666search1
+نسخهٔ stable فعلی در این ریپو `sing-box 1.14.1` است.
 
 ## زیرساخت رایگان
 
 provider مرجع: Oracle Cloud Always Free A1.
 
-طبق مستندات فعلی Oracle، سهمیهٔ Always Free برای A1 در tenancy رایگان معادل مجموع 2 OCPU و 12 GB RAM است. همچنین منابع Always Free در home region بدون هزینه ادامه پیدا می‌کنند، مشروط به ماندن در حدود رایگان. citeturn658806search2turn658806search0
+سقف فعلی A1 برای tenancy رایگان مجموعاً 2 OCPU و 12 GB RAM است. Always Free به home region محدود است و ظرفیت، احراز هویت و availability می‌تواند در زمان اجرا تغییر کند.
 
-این پروژه provider را hard-code نمی‌کند؛ adapterهای دیگر فقط در صورتی اضافه می‌شوند که VM دائمی، IP عمومی و egress رایگان واقعی داشته باشند.
+Terraform پروژه shape را روی `VM.Standard.A1.Flex` با 2 OCPU و 12 GB RAM قفل می‌کند.
 
 ## کنترل نشت
 
-TUN با `auto_route=true` و `strict_route=true` اجرا می‌شود. مستندات sing-box می‌گویند strict_route در Windows از DNS leak ناشی از رفتار عادی multihomed DNS جلوگیری می‌کند. citeturn860646search2
+TUN با `auto_route=true` و `strict_route=true` اجرا می‌شود. DNS نیز از DoT استفاده می‌کند و مسیر DNS از outbound پروکسی عبور می‌کند.
 
-DNS upstream از DoT به 1.1.1.1 استفاده می‌کند و connection آن از outbound پروکسی عبور می‌کند؛ detour برای DNS در sing-box جزو Dial Fields است. citeturn190631search1turn190631search0
+IPv6 forwarding روی gateway عمداً خاموش است تا قبل از پیاده‌سازی routing/NAT صریح، مسیر IPv6 ناخواسته ایجاد نشود.
 
-## وضعیت توسعه
+## امنیت
 
-- server bootstrap
-- تولید REALITY keypair
-- client template
-- Windows installer
-- Windows kill-switch
-- OCI Terraform
-- schema validation و secret scanning در CI
+private key سرور فقط روی gateway نگهداری می‌شود. کانفیگ واقعی client/server، UUID خصوصی، token و private key نباید commit شوند.
+
+برای نصب binary رسمی sing-box، SHA-256 release قبل از نصب بررسی می‌شود.
+
+Windows kill-switch می‌تواند outbound پیش‌فرض سیستم را مسدود کند؛ ابتدا تونل را آماده کنید و برای بازگردانی از `disable-killswitch.ps1` استفاده کنید.
+
+## وضعیت نسخه
+
+آخرین snapshot تمام gateهای CI را پاس کرده است: JSON، ShellCheck، PowerShell، Secret Audit، sing-box parser، Terraform format و Terraform validate.
+
+تست end-to-end از یک شبکهٔ واقعی ایران و یک VM واقعی هنوز بخشی از provisioning کاربر است؛ CI نمی‌تواند latency، DPI یا دسترسی free-tier را از ایران اثبات کند.
+
+## اسناد
+
+- `docs/quickstart.md`
+- `docs/setup-oci.md`
+- `docs/architecture.md`
+- `docs/provider-matrix.md`
+- `docs/threat-model.md`
+- `infra/oci/`
+- `client/windows/`
+
+## منابع رسمی
+
+- Oracle Cloud Free Tier: https://www.oracle.com/cloud/free/
+- Oracle Always Free resources: https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm
+- OCI Terraform provider: https://registry.terraform.io/providers/oracle/oci/latest
+- sing-box releases: https://github.com/SagerNet/sing-box/releases
+- sing-box documentation: https://sing-box.sagernet.org/
 
 ## محدودیت واقعی
 
-این پروژه خودِ اینترنت خارجی رایگان ایجاد نمی‌کند. برای استفادهٔ واقعی، حداقل یک نقطهٔ خروج خارجیِ رایگان و قابل‌دسترسی لازم است. ظرفیت free-tier، region و verification در اختیار provider است.
+این پروژه اینترنت خارجی «رایگان» تولید نمی‌کند. برای استفادهٔ عملی، باید یک نقطهٔ خروج خارجیِ رایگان و قابل‌دسترسی داشته باشید. هزینهٔ project در design صفر است، ولی provider می‌تواند ظرفیت، verification یا سیاست دسترسی خود را تغییر دهد.
 
-هرگز private key، UUID خصوصی، token یا کانفیگ واقعی را commit نکنید.
+هرگز private key، credential یا کانفیگ واقعی را در Git قرار ندهید.
