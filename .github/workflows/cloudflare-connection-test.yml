@@ -11,46 +11,36 @@ permissions:
 jobs:
   verify-cloudflare:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
-      CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
 
     steps:
-      - name: Verify required secrets
+      - name: Test Cloudflare API
         shell: bash
+        env:
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
         run: |
           set -euo pipefail
 
           if [[ -z "${CLOUDFLARE_EMAIL:-}" ]]; then
-            echo "CLOUDFLARE_EMAIL is not available."
+            echo "CLOUDFLARE_EMAIL is missing."
             exit 1
           fi
 
           if [[ -z "${CLOUDFLARE_API_KEY:-}" ]]; then
-            echo "CLOUDFLARE_API_KEY is not available."
+            echo "CLOUDFLARE_API_KEY is missing."
             exit 1
           fi
 
-          echo "Cloudflare secrets are available to the job."
+          response="$(curl --fail --silent --show-error \
+            --request GET \
+            --url "https://api.cloudflare.com/client/v4/user" \
+            --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}" \
+            --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}" \
+            --header "Content-Type: application/json")"
 
-      - name: Test Cloudflare API
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          response="$(curl --fail-with-body --silent --show-error             --request GET             --url "https://api.cloudflare.com/client/v4/user"             --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}"             --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}"             --header "Content-Type: application/json")"
-
-          RESPONSE="$response" python - <<'PY'
-import json
-import os
-
-data = json.loads(os.environ["RESPONSE"])
-
-if data.get("success") is True:
-    print("Cloudflare authentication succeeded.")
-    raise SystemExit(0)
-
-print("Cloudflare authentication failed.")
-raise SystemExit(1)
-PY
+          if python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("success") is True else 1)' <<< "$response"; then
+            echo "Cloudflare authentication succeeded."
+          else
+            echo "Cloudflare authentication failed."
+            exit 1
+          fi
