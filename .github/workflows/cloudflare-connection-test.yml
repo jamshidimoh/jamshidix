@@ -11,9 +11,10 @@ permissions:
 jobs:
   verify-cloudflare:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
-      - name: Test Cloudflare API
+      - name: Verify Cloudflare account access
         shell: bash
         env:
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
@@ -21,26 +22,30 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ -z "${CLOUDFLARE_EMAIL:-}" ]]; then
-            echo "CLOUDFLARE_EMAIL is missing."
-            exit 1
-          fi
+          test -n "${CLOUDFLARE_EMAIL:-}" || { echo "CLOUDFLARE_EMAIL is missing."; exit 1; }
+          test -n "${CLOUDFLARE_API_KEY:-}" || { echo "CLOUDFLARE_API_KEY is missing."; exit 1; }
 
-          if [[ -z "${CLOUDFLARE_API_KEY:-}" ]]; then
-            echo "CLOUDFLARE_API_KEY is missing."
-            exit 1
-          fi
+          user_response="$(curl --fail --silent --show-error             --request GET             --url "https://api.cloudflare.com/client/v4/user"             --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}"             --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}"             --header "Content-Type: application/json")"
 
-          response="$(curl --fail --silent --show-error \
-            --request GET \
-            --url "https://api.cloudflare.com/client/v4/user" \
-            --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}" \
-            --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}" \
-            --header "Content-Type: application/json")"
+          zones_response="$(curl --fail --silent --show-error             --request GET             --url "https://api.cloudflare.com/client/v4/zones?per_page=1"             --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}"             --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}"             --header "Content-Type: application/json")"
 
-          if python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("success") is True else 1)' <<< "$response"; then
-            echo "Cloudflare authentication succeeded."
-          else
-            echo "Cloudflare authentication failed."
-            exit 1
-          fi
+          USER_RESPONSE="$user_response" ZONES_RESPONSE="$zones_response" python3 - <<'PY'
+import json
+import os
+import sys
+
+user = json.loads(os.environ["USER_RESPONSE"])
+zones = json.loads(os.environ["ZONES_RESPONSE"])
+
+if user.get("success") is not True:
+    print("Cloudflare user authentication failed.")
+    sys.exit(1)
+
+if zones.get("success") is not True:
+    print("Cloudflare Zone API access failed.")
+    sys.exit(1)
+
+print("Cloudflare authentication succeeded.")
+print("Cloudflare Zone API access succeeded.")
+print("Zone result count returned:", len(zones.get("result", [])))
+PY
