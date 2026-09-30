@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 — 2026-09-30
+
+- One-click Windows launcher: automatic elevation, sing-box check/install, config discovery, validation and background TUN start.
+- GUI subsystem build so double-click does not open a console window.
+
+
 ## 0.1.0 — 2026-09-30
 
 - Free-tier-first OCI A1 provisioning.
