@@ -53,10 +53,8 @@ resource "oci_core_security_list" "gateway" {
     description = "Jamshidix VLESS/REALITY"
 
     tcp_options {
-      destination_port_range {
-        min = 443
-        max = 443
-      }
+      min = 443
+      max = 443
     }
   }
 
