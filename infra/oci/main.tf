@@ -64,10 +64,8 @@ resource "oci_core_security_list" "gateway" {
     description = "SSH administration"
 
     tcp_options {
-      destination_port_range {
-        min = 22
-        max = 22
-      }
+      min = 22
+      max = 22
     }
   }
 
