@@ -1,0 +1,38 @@
+name: Cloudflare Inventory
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inventory Cloudflare account
+        shell: bash
+        env:
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CLOUDFLARE_EMAIL:-}" || -z "${CLOUDFLARE_API_KEY:-}" ]]; then
+            echo "Required Cloudflare secrets are missing."
+            exit 1
+          fi
+
+          response="$(curl --fail --silent --show-error             --request GET             --url "https://api.cloudflare.com/client/v4/zones?per_page=100"             --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}"             --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}"             --header "Content-Type: application/json")"
+
+          RESPONSE="$response" python3 - <<'PY'
+import json, os
+d=json.loads(os.environ["RESPONSE"])
+if d.get("success") is not True:
+    raise SystemExit("Cloudflare API request failed.")
+for z in d.get("result", []):
+    print(f"ZONE name={z.get('name')} id={z.get('id')} status={z.get('status')} plan={((z.get('plan') or {}).get('name') or 'unknown')}")
+PY
