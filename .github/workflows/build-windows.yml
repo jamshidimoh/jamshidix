@@ -29,7 +29,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          go build -trimpath -ldflags="-s -w" -o dist/Jamshidix.exe ./cmd/jamshidix
+          go build -trimpath -ldflags="-s -w -H=windowsgui" -o dist/Jamshidix.exe ./cmd/jamshidix
           Get-FileHash dist/Jamshidix.exe -Algorithm SHA256
 
       - name: Upload executable
