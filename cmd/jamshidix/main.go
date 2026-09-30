@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	appVersion     = "0.1.0"
+	appVersion     = "0.1.1"
 	singBoxVersion = "1.14.1"
 	singBoxSHA256  = "5197f16d492d93202dc623622149a6ed040f8eca263128f91d603f2b901baa89"
 )
@@ -35,7 +35,7 @@ func main() {
 		fatal(errors.New("Jamshidix supports Windows only"))
 	}
 	if len(os.Args) < 2 {
-		usage()
+		fatal(runOneClick())
 		return
 	}
 	switch os.Args[1] {
@@ -49,6 +49,8 @@ func main() {
 		fatal(checkConfig())
 	case "run":
 		fatal(runTunnel())
+	case "stop":
+		fatal(stopSingBox())
 	case "status":
 		fatal(status())
 	default:
