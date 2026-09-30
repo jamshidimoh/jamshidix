@@ -119,6 +119,16 @@ resource "oci_core_instance" "gateway" {
   }
 }
 
+data "oci_core_vnic_attachments" "gateway" {
+  compartment_id      = var.compartment_ocid
+  instance_id         = oci_core_instance.gateway.id
+  availability_domain = local.availability_domain
+}
+
 data "oci_core_vnic" "gateway" {
-  vnic_id = oci_core_instance.gateway.primary_vnic_id
+  vnic_id = [
+    for attachment in data.oci_core_vnic_attachments.gateway.vnic_attachments :
+    attachment.vnic_id
+    if attachment.nic_index == 0 && attachment.state == "ATTACHED"
+  ][0]
 }
