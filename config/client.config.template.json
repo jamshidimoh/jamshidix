@@ -1,0 +1,57 @@
+{
+  "$schema": "https://sing-box.sagernet.org/schema.json",
+  "log": { "level": "warn" },
+  "dns": {
+    "servers": [
+      {
+        "type": "tls",
+        "tag": "remote-dns",
+        "server": "1.1.1.1",
+        "server_port": 853,
+        "tls": { "server_name": "cloudflare-dns.com" }
+      }
+    ],
+    "final": "remote-dns"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "JamshidixTunnel",
+      "address": ["172.19.0.1/30"],
+      "auto_route": true,
+      "strict_route": true,
+      "stack": "system"
+    },
+    {
+      "type": "mixed",
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 2080
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "proxy",
+      "server": "REPLACE_WITH_SERVER_IP",
+      "server_port": 443,
+      "uuid": "REPLACE_WITH_UUID",
+      "flow": "xtls-rprx-vision",
+      "tls": {
+        "enabled": true,
+        "server_name": "REPLACE_WITH_HANDSHAKE_HOST",
+        "reality": {
+          "enabled": true,
+          "public_key": "REPLACE_WITH_REALITY_PUBLIC_KEY",
+          "short_id": "REPLACE_WITH_SHORT_ID"
+        }
+      }
+    },
+    { "type": "direct", "tag": "direct" }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "proxy"
+  }
+}
