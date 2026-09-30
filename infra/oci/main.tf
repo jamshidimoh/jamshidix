@@ -14,7 +14,7 @@ data "oci_core_images" "ubuntu" {
 
 locals {
   availability_domain = var.availability_domain_name != "" ? var.availability_domain_name : data.oci_identity_availability_domains.ads.availability_domains[0].name
-  image_id             = data.oci_core_images.ubuntu.images[0].id
+  image_id            = data.oci_core_images.ubuntu.images[0].id
 }
 
 resource "oci_core_vcn" "main" {
@@ -44,8 +44,8 @@ resource "oci_core_route_table" "public" {
 
 resource "oci_core_security_list" "gateway" {
   compartment_id = var.compartment_ocid
-  vcn_id          = oci_core_vcn.main.id
-  display_name    = "jamshidix-security"
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "jamshidix-security"
 
   ingress_security_rules {
     protocol    = "6"
@@ -113,8 +113,8 @@ resource "oci_core_instance" "gateway" {
 
   source_details {
     boot_volume_size_in_gbs = var.boot_volume_size_gb
-    source_id                = local.image_id
-    source_type              = "image"
+    source_id               = local.image_id
+    source_type             = "image"
   }
 
   freeform_tags = {
