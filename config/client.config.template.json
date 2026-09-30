@@ -52,6 +52,10 @@
       "tls": {
         "enabled": true,
         "server_name": "REPLACE_WITH_HANDSHAKE_HOST",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
         "reality": {
           "enabled": true,
           "public_key": "REPLACE_WITH_REALITY_PUBLIC_KEY",
