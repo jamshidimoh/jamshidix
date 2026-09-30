@@ -1,6 +1,8 @@
 name: Cloudflare Zone Inventory
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -31,4 +33,4 @@ jobs:
 
           response="$(curl --fail --silent --show-error             --request GET             --url "https://api.cloudflare.com/client/v4/zones?per_page=100"             --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}"             --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}"             --header "Content-Type: application/json")"
 
-          RESPONSE="$response" python3 -c 'import json,os; d=json.loads(os.environ["RESPONSE"]); assert d.get("success") is True; [print("ZONE",z.get("name"),z.get("id"),z.get("status")) for z in d.get("result",[])]'
+          RESPONSE="$response" python3 -c 'import json,os,sys; d=json.loads(os.environ["RESPONSE"]); sys.exit(1) if d.get("success") is not True else 0; [print("ZONE",z.get("name"),z.get("id"),z.get("status")) for z in d.get("result",[])]'
