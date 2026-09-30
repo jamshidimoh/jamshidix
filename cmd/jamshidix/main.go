@@ -39,6 +39,8 @@ func main() {
 		return
 	}
 	switch os.Args[1] {
+	case "--one-click-elevated":
+		fatal(runOneClick())
 	case "version":
 		fmt.Printf("Jamshidix %s | sing-box %s\n", appVersion, singBoxVersion)
 	case "install":
