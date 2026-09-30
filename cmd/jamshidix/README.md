@@ -1,32 +1,31 @@
 # Jamshidix.exe
 
-## نصب
+## اجرای یک‌کلیکی
 
-PowerShell یا CMD را به‌صورت Administrator باز کنید:
+بعد از آماده بودن `client.json`، فقط روی `Jamshidix.exe` دوبارکلیک کنید.
+
+EXE به‌صورت خودکار:
+- در صورت نیاز درخواست Administrator می‌دهد.
+- sing-box 1.14.1 را نصب/بررسی می‌کند.
+- `client.json` کنار EXE یا در `%ProgramData%\\Jamshidix\\client.json` را پیدا می‌کند.
+- کانفیگ را با parser واقعی sing-box اعتبارسنجی می‌کند.
+- TUN را در پس‌زمینه اجرا می‌کند.
+
+برای اجرای اول، می‌توانید `client.json` واقعی را کنار EXE قرار دهید. اگر فایل وجود نداشته باشد، EXE یک `client.config.template.json` در پوشهٔ داده می‌سازد و پوشه را باز می‌کند.
+
+## فرمان‌های عیب‌یابی
 
 ```powershell
-.\Jamshidix.exe install
-```
-
-## ساخت کانفیگ
-
-```powershell
-.\Jamshidix.exe config --server-ip "<PUBLIC_IP>" --uuid "<UUID>" --public-key "<REALITY_PUBLIC_KEY>" --short-id "<SHORT_ID>" --handshake-host "<HANDSHAKE_HOST>"
-```
-
-## بررسی و اجرا
-
-```powershell
-.\Jamshidix.exe check
 .\Jamshidix.exe status
-.\Jamshidix.exe run
+.\Jamshidix.exe stop
+.\Jamshidix.exe version
 ```
 
-`run` تونل TUN را در همان console اجرا می‌کند و معمولاً به Administrator نیاز دارد.
+فرمان‌های قدیمی `install`، `config`، `check` و `run` نیز برای مدیریت دستی باقی مانده‌اند.
 
 ## Kill-switch و autostart
 
-برای این دو قابلیت، اسکریپت‌های `client/windows/enable-killswitch.ps1`، `disable-killswitch.ps1` و `install-autostart.ps1` همچنان مسیر رسمی پروژه هستند.
+این دو قابلیت هنوز اسکریپت‌های PowerShell موجود در `client/windows/` هستند و در مسیر یک‌کلیکی پایه ادغام نشده‌اند.
 
 ## معماری
 
