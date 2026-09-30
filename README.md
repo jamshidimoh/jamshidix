@@ -44,6 +44,12 @@ Windows kill-switch می‌تواند outbound پیش‌فرض سیستم را �
 
 تست end-to-end از یک شبکهٔ واقعی ایران و یک VM واقعی هنوز بخشی از provisioning کاربر است؛ CI نمی‌تواند latency، DPI یا دسترسی free-tier را از ایران اثبات کند.
 
+## فایل اجرایی Windows
+
+فایل `Jamshidix.exe` یک launcher بومی Windows است که نصب sing-box رسمی، ساخت client.json، validation، اجرای TUN و status را مدیریت می‌کند. برای kill-switch و autostart، اسکریپت‌های PowerShell موجود باقی مانده‌اند.
+
+Build مستقل با Go انجام می‌شود و SHA-256 آرشیو sing-box قبل از نصب بررسی می‌شود.
+
 ## اسناد
 
 - `docs/quickstart.md`
