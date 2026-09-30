@@ -10,7 +10,7 @@ ARCH="$(dpkg --print-architecture)"
 case "$ARCH" in
   arm64)
     FILE="cloudflared-linux-arm64"
-    EXPECTED_SHA256="3d97437c71848bd8df68041e12436b484a661d95073ea1937f01a845ce88faa3"
+    EXPECTED_SHA256="77e26d8d900e0b8469f416239d14b5f296525fdf79fee6f511ef55609e3fbac2"
     ;;
   amd64)
     FILE="cloudflared-linux-amd64"
