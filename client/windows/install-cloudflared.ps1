@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $url = "https://github.com/cloudflare/cloudflared/releases/download/$Version/cloudflared-windows-amd64.exe"
-$expectedSha256 = "2837888cc0f5d58f15b6dc478376de90b4d3ba5241c7947455d1e0a0df429712"
+$expectedSha256 = "f096265ec2fcbe9bb6e2d64268db167ced3fcbb83d894bdb9e2fcdb26f2ea7e2"
 $installDir = Join-Path $env:ProgramFiles "Cloudflared"
 $exe = Join-Path $installDir "cloudflared.exe"
 $tmp = Join-Path $env:TEMP "cloudflared-$Version.exe"
