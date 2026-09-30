@@ -8,7 +8,10 @@
         "tag": "remote-dns",
         "server": "1.1.1.1",
         "server_port": 853,
-        "tls": { "server_name": "cloudflare-dns.com" }
+        "tls": {
+          "server_name": "cloudflare-dns.com"
+        },
+        "detour": "proxy"
       }
     ],
     "final": "remote-dns"
@@ -18,7 +21,15 @@
       "type": "tun",
       "tag": "tun-in",
       "interface_name": "JamshidixTunnel",
-      "address": ["172.19.0.1/30"],
+      "address": [
+        "172.19.0.1/30",
+        "fd19:73ab:2026::1/126"
+      ],
+      "dns_mode": "hijack",
+      "dns_address": [
+        "172.19.0.2",
+        "fd19:73ab:2026::2"
+      ],
       "auto_route": true,
       "strict_route": true,
       "stack": "system"
@@ -48,10 +59,20 @@
         }
       }
     },
-    { "type": "direct", "tag": "direct" }
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
   ],
   "route": {
     "auto_detect_interface": true,
+    "rules": [
+      {
+        "ip_is_private": true,
+        "action": "route",
+        "outbound": "direct"
+      }
+    ],
     "final": "proxy"
   }
 }
