@@ -1,0 +1,51 @@
+name: Cloudflare Connection Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-cloudflare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check required Cloudflare environment variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CLOUDFLARE_EMAIL:-}" ]]; then
+            echo "CLOUDFLARE_EMAIL is not available."
+            exit 1
+          fi
+
+          if [[ -z "${CLOUDFLARE_API_KEY:-}" ]]; then
+            echo "CLOUDFLARE_API_KEY is not available."
+            exit 1
+          fi
+
+          echo "Cloudflare credentials are available to the job."
+
+      - name: Test Cloudflare API
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response="$(curl --fail-with-body --silent --show-error             --request GET             --url "https://api.cloudflare.com/client/v4/user"             --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}"             --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}"             --header "Content-Type: application/json")"
+
+          python - "$response" <<'PY'
+import json
+import sys
+
+data = json.loads(sys.argv[1])
+
+if data.get("success") is True:
+    print("Cloudflare authentication succeeded.")
+    raise SystemExit(0)
+
+print("Cloudflare authentication failed.")
+raise SystemExit(1)
+PY
