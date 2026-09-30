@@ -22,8 +22,8 @@ const (
 )
 
 var (
-	user32      = syscall.NewLazyDLL("user32.dll")
-	messageBoxW = user32.NewProc("MessageBoxW")
+	user32              = syscall.NewLazyDLL("user32.dll")
+	messageBoxW         = user32.NewProc("MessageBoxW")
 	errOneClickRelaunch = errors.New("elevated instance launched")
 )
 
