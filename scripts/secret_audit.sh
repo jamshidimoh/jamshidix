@@ -10,7 +10,7 @@ patterns=(
 )
 
 found=0
-for pattern in "\${patterns[@]}"; do
+for pattern in "${patterns[@]}"; do
   matches="$(git grep -nEI "$pattern" -- . ':!.git' || true)"
   if [[ -n "$matches" ]]; then
     printf '%s\n' "$matches"
