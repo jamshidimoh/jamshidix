@@ -19,7 +19,7 @@ esac
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 ARCHIVE="sing-box-${SING_BOX_VERSION}-linux-${SB_ARCH}.tar.gz"
-URL="\${SING_BOX_BASE}/\${ARCHIVE}"
+URL="${SING_BOX_BASE}/${ARCHIVE}"
 
 curl --fail --silent --show-error --location "$URL" -o "$TMP_DIR/$ARCHIVE"
 tar -xzf "$TMP_DIR/$ARCHIVE" -C "$TMP_DIR"
