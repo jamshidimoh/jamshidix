@@ -67,11 +67,11 @@ jobs:
 
       - name: Secret audit
         shell: bash
-        run: ./scripts/secret_audit.sh
+        run: bash ./scripts/secret_audit.sh
 
       - name: sing-box parser validation
         shell: bash
-        run: ./scripts/validate_singbox.sh
+        run: bash ./scripts/validate_singbox.sh
 
       - name: Terraform format
         shell: bash
