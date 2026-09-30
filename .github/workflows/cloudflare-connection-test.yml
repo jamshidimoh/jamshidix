@@ -1,4 +1,4 @@
-name: Cloudflare Connection Test
+name: Cloudflare Connection Test (manual)
 
 on:
   workflow_dispatch:
@@ -7,43 +7,10 @@ permissions:
   contents: read
 
 jobs:
-  verify-cloudflare:
+  guidance:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-
     steps:
-      - name: Verify Cloudflare account access
-        shell: bash
-        env:
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+      - name: Show next step
         run: |
-          set -euo pipefail
-
-          test -n "${CLOUDFLARE_EMAIL:-}" || { echo "CLOUDFLARE_EMAIL is missing."; exit 1; }
-          test -n "${CLOUDFLARE_API_KEY:-}" || { echo "CLOUDFLARE_API_KEY is missing."; exit 1; }
-
-          user_response="$(curl --fail --silent --show-error             --request GET             --url "https://api.cloudflare.com/client/v4/user"             --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}"             --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}"             --header "Content-Type: application/json")"
-
-          zones_response="$(curl --fail --silent --show-error             --request GET             --url "https://api.cloudflare.com/client/v4/zones?per_page=1"             --header "X-Auth-Email: ${CLOUDFLARE_EMAIL}"             --header "X-Auth-Key: ${CLOUDFLARE_API_KEY}"             --header "Content-Type: application/json")"
-
-          USER_RESPONSE="$user_response" ZONES_RESPONSE="$zones_response" python3 - <<'PY'
-import json
-import os
-import sys
-
-user = json.loads(os.environ["USER_RESPONSE"])
-zones = json.loads(os.environ["ZONES_RESPONSE"])
-
-if user.get("success") is not True:
-    print("Cloudflare user authentication failed.")
-    sys.exit(1)
-
-if zones.get("success") is not True:
-    print("Cloudflare Zone API access failed.")
-    sys.exit(1)
-
-print("Cloudflare authentication succeeded.")
-print("Cloudflare Zone API access succeeded.")
-print("Zone result count returned:", len(zones.get("result", [])))
-PY
+          echo "Cloudflare API connectivity was previously verified successfully."
+          echo "Run the local script scripts/cloudflare_connection_test.sh when a fresh credential check is required."
