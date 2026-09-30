@@ -7,6 +7,7 @@ patterns=(
   'github_pat_[A-Za-z0-9_]+'
   'xox[baprs]-'
   'AKIA[0-9A-Z]{16}'
+  'cfk_[A-Za-z0-9_-]{20,}'
 )
 
 found=0
