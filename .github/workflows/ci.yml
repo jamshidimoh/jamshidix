@@ -101,9 +101,16 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o dist/Jamshidix.exe ./cmd/jamshidix
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -H=windowsgui" -o dist/Jamshidix.exe ./cmd/jamshidix
           file dist/Jamshidix.exe
           sha256sum dist/Jamshidix.exe
+
+      - name: Upload Windows one-click executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jamshidix-Windows-x64-OneClick
+          path: dist/Jamshidix.exe
+          if-no-files-found: error
 
       - name: Terraform format
         shell: bash
