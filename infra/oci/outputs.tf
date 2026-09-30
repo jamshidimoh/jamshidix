@@ -12,5 +12,5 @@ output "selected_image" {
 }
 
 output "ssh_command" {
-  value = "ssh ubuntu@\${data.oci_core_vnic.gateway.public_ip_address}"
+  value = "ssh ubuntu@${data.oci_core_vnic.gateway.public_ip_address}"
 }
