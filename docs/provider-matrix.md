@@ -7,6 +7,8 @@
 | GitHub Actions | 0 | خیر | نامناسب | CI |
 | VPN تجاری رایگان | 0 | وابسته به provider | نامشخص | backend پروژه نیست |
 
-Workers Free در حال حاضر 100,000 request/day و 10ms CPU برای هر invocation دارد و بنابراین برای control-plane سبک مناسب‌تر از dataplane دائمی است. citeturn482847search0turn482847search1
+Cloudflare Workers برای control-plane سبک قابل استفاده است، اما جای یک gateway VM دائمی را در این معماری نمی‌گیرد.
 
 اصل انتخاب: VM persistence + public IP + egress + اجرای TCP/443 باید همزمان فراهم باشد.
+
+این پروژه به provider تجاری یا اشتراک VPN وابسته نیست.
