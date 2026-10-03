@@ -205,6 +205,7 @@ func runGUIElevated() error {
 	updateWindow.Call(hwnd)
 
 	go initialRefresh()
+	go periodicRefresh()
 	var m guiMsg
 	for {
 		r, _, _ := getMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
@@ -264,9 +265,7 @@ func populateRegionCombo() {
 	seen := map[string]bool{"همه مناطق": true}
 	regions := []string{"همه مناطق"}
 	for _, n := range appGUI.allNodes {
-		r := n.Region
-		if r == "" { r = countryText(n) }
-		if r == "" { r = "نامشخص" }
+		r := nodeRegion(n)
 		if !seen[r] {
 			seen[r] = true
 			regions = append(regions, r)
@@ -312,8 +311,7 @@ func populateGUIList() {
 		} else if n.LocalLatencyMs < 0 {
 			status = "دسترسی محلی؟"
 		}
-		region := n.Region
-		if region == "" { region = countryText(n) }
+		region := nodeRegion(n)
 		label := fmt.Sprintf("%s | منطقه %s | %s | اولویت %d", n.Name, region, status, n.Priority)
 		sendMessageW.Call(appGUI.list, lbAddString, 0, uintptr(unsafe.Pointer(utf16(label))))
 	}
@@ -394,6 +392,16 @@ func initialRefresh() {
 		}
 	}
 	postMessageW.Call(appGUI.hwnd, msgRefreshDone, 0, 0)
+}
+
+
+func periodicRefresh() {
+	for {
+		time.Sleep(20 * time.Minute)
+		if appGUI != nil && !appGUI.busy {
+			go initialRefresh()
+		}
+	}
 }
 
 func setGUIBusy(b bool) {
