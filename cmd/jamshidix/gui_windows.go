@@ -506,7 +506,7 @@ func guiWndProc(hwnd uintptr, m uint32, wParam, lParam uintptr) uintptr {
 		case btnRefresh:
 			if notify == bnClicked && !appGUI.busy { go initialRefresh() }
 		case cboSort, cboRegion:
-			if notify == cboSelChange && !appGUI.busy { onComboChanged() }
+			if notify == cboSelChange && !appGUI.busy { applyComboView() }
 		case btnConnect:
 			if notify == bnClicked {
 				connectSelected()
