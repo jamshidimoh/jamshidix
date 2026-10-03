@@ -11,15 +11,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SOURCES = [
-    ("ebrasha", "https://github.com/ebrasha/free-v2ray-public-list/raw/refs/heads/main/vless_configs.txt"),
-    ("gfpcom", "https://raw.githubusercontent.com/wiki/gfpcom/free-proxy-list/lists/vless.txt"),
-    ("kort0881", "https://github.com/kort0881/vpn-vless-configs-russia/raw/refs/heads/main/data/githubmirror/ru-sni/vless.txt"),
-    ("radikal-fast", "https://github.com/0xRadikal/Free-v2ray-Configs/raw/refs/heads/main/fast/configs.txt"),
+    ("ebrasha", "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/refs/heads/main/vless_configs.txt"),
+    ("baarcuda", "https://raw.githubusercontent.com/Baarcuda/vpn-configs/master/top100-vless.txt"),
+    ("radikal", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt"),
+    ("morpheus", "https://raw.githubusercontent.com/morpheusadam/v2ray-config/main/subs/bundles/vless.txt"),
 ]
 DISCOVERY_PAGES = [
     ("vlessnode", "https://vlessnode.github.io/"),
     ("freevlessnode", "https://freevlessnode.github.io/"),
-    ("vlessnode", "https://vlessnode.github.io/"),
 ]
 OUT = Path("directory/nodes.json")
 SEED = Path("cmd/jamshidix/assets/directory.seed.json")
@@ -150,6 +149,7 @@ def tcp_probe(node):
             pass
         node["remote_ok"] = True
         node["remote_latency_ms"] = max(1, int((time.monotonic() - start) * 1000))
+        node["priority"] = min(100, SOURCE_PRIORITY.get(node["source"], 70) + max(0, 18 - node["remote_latency_ms"] // 50) + (4 if node.get("region") else 0))
         return node
     except Exception:
         return None
@@ -204,10 +204,6 @@ def main():
     SEED.parent.mkdir(parents=True, exist_ok=True)
     SEED.write_text(data, encoding="utf-8")
     print(f"published nodes: {len(checked)}")
-    if len(checked) == 0:
-        # Keep a valid directory even if the runner cannot reach any public node.
-        # Local client-side preflight will decide actual usability.
-        checked = nodes[:MAX_OUTPUT]
     if len(checked) == 0:
         raise SystemExit("no validated VLESS/REALITY candidates found")
 
