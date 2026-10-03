@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# This file is a placeholder for the built Jamshidix.exe
+# To generate the actual executable, run:
+# go build -trimpath -ldflags="-H windowsgui -s -w" -o Jamshidix.exe ./cmd/jamshidix
+#
+# For now, this repository serves as the source code.
+# Users can build the executable themselves or download from GitHub Releases.
