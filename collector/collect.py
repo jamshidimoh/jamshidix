@@ -13,6 +13,8 @@ from pathlib import Path
 SOURCES = [
     ("ebrasha", "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/main/vless_configs.txt"),
     ("gfpcom", "https://raw.githubusercontent.com/wiki/gfpcom/free-proxy-list/lists/vless.txt"),
+    ("kort0881", "https://raw.githubusercontent.com/kort0881/vpn-vless-configs-russia/main/data/githubmirror/ru-sni/vless.txt"),
+    ("radikal-fast", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/fast/configs.txt"),
 ]
 DISCOVERY_PAGES = [
     ("vlessnode", "https://vlessnode.github.io/"),
