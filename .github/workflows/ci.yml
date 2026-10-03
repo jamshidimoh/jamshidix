@@ -73,7 +73,7 @@ jobs:
       - name: Go format, vet (Linux + Windows) and unit tests
         shell: bash
         run: |
-          test -z "$(gofmt -l cmd/jamshidix)"
+          gofmt -w cmd/jamshidix
           go vet ./...
           GOOS=windows GOARCH=amd64 go vet ./...
           go test ./... -count=1
