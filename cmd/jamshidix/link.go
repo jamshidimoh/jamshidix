@@ -169,7 +169,7 @@ func renderClientConfig(p Profile) ([]byte, error) {
 		}
 	}
 	if proxy == nil {
-		return nil, errors.New("client template has no "proxy" outbound")
+		return nil, errors.New(`client template has no "proxy" outbound`)
 	}
 	tls, err := child(proxy, "tls")
 	if err != nil {
