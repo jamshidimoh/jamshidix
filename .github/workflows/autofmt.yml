@@ -16,17 +16,29 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.23.x"
-      - name: gofmt
-        run: gofmt -w cmd/jamshidix
-      - name: Commit formatting changes
+      - name: gofmt with diagnostics
+        shell: bash
+        run: |
+          set +e
+          rm -f gofmt-error.log
+          status=0
+          while IFS= read -r -d '' f; do
+            if ! gofmt -w "$f" 2>>gofmt-error.log; then
+              echo "gofmt failed: $f" >&2
+              status=1
+            fi
+          done < <(find cmd/jamshidix -name '*.go' -print0)
+          if [ -s gofmt-error.log ]; then
+            cat gofmt-error.log >&2
+          fi
+          exit $status
+      - name: Preserve formatter diagnostics
+        if: always()
         shell: bash
         run: |
           git config user.name "jamshidix-bot"
           git config user.email "jamshidix-bot@users.noreply.github.com"
-          if git diff --quiet; then
-            echo "Already formatted."
-            exit 0
-          fi
-          git add cmd/jamshidix
-          git commit -m "style: gofmt"
+          git add cmd/jamshidix gofmt-error.log
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: format Go sources and record diagnostics"
           git push
