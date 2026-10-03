@@ -1,0 +1,40 @@
+name: Format Go
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.go"
+      - ".github/workflows/gofmt.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gofmt-main
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+      - name: Apply gofmt
+        run: gofmt -w $(find . -name "*.go" -type f -not -path "./.git/*")
+      - name: Commit formatting
+        shell: bash
+        run: |
+          git config user.name "jamshidix-bot"
+          git config user.email "jamshidix-bot@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "Go sources already formatted."
+            exit 0
+          fi
+          git add -- '*.go'
+          git commit -m "style: gofmt Go sources"
+          git push
