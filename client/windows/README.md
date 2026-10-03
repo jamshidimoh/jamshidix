@@ -1,12 +1,14 @@
 # Windows client
 
-مسیر پیشنهادی: `Jamshidix.exe` (یک‌کلیکی، فایل `cmd/jamshidix/README.md`).
+The primary user experience is `Jamshidix.exe`, a native Windows GUI.
 
-اسکریپت‌های این پوشه برای مدیریت دستی/پیشرفته‌اند: install، render-client، run، autostart، kill-switch.
+The GUI provides:
 
-دو حالت sing-box:
+- automatic remote free-node directory refresh;
+- region filter;
+- sorting by priority, measured local speed, region, or freshness;
+- local reachability preflight;
+- connect/disconnect controls;
+- cached-directory fallback when remote mirrors are unavailable.
 
-1. TUN برای پوشش ترافیک سیستم، از جمله Chrome.
-2. mixed inbound روی `127.0.0.1:2080` برای fallback پروکسی.
-
-کانفیگ نمونه: `config/client.config.template.json`. فایل واقعی client.json و هر credential/لینک باید خارج از Git بماند.
+The PowerShell files in this directory are retained as maintenance and recovery tools, not as prerequisites for normal users.
