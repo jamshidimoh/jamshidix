@@ -15,7 +15,11 @@ func main() {
 	if runtime.GOOS != "windows" {
 		fatal(errors.New("Jamshidix supports Windows only"))
 	}
-	if len(os.Args) < 2 || os.Args[1] == "--one-click-elevated" {
+	if len(os.Args) < 2 || os.Args[1] == "--gui-elevated" {
+		fatal(runGUI())
+		return
+	}
+	if os.Args[1] == "--one-click-elevated" {
 		fatal(runOneClick())
 		return
 	}
