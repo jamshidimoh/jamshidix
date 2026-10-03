@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -17,12 +18,20 @@ const (
 	btnRefresh    = 1001
 	btnConnect    = 1002
 	btnDisconnect = 1003
+	cboSort      = 1004
+	cboRegion    = 1005
 	lstServers    = 1101
 	lblStatus     = 1201
 	cmbSort       = 1202
 	cmbRegion     = 1203
 	msgRefreshDone uint32 = 0x8001
 	msgActionDone  uint32 = 0x8002
+	cboSelChange uint16 = 1
+	cbAddString uint32 = 0x0143
+	cbReset uint32 = 0x014B
+	cbSetCurSel uint32 = 0x014E
+	cbGetCurSel uint32 = 0x0147
+	cbGetLBText uint32 = 0x0148
 
 	wsOverlapped   = 0x00CF0000
 	wsVisible      = 0x10000000
@@ -75,6 +84,8 @@ var (
 type guiState struct {
 	hwnd       uintptr
 	list       uintptr
+	sortCombo  uintptr
+	regionCombo uintptr
 	status     uintptr
 	sort       uintptr
 	region     uintptr
@@ -220,6 +231,8 @@ func createGUIControls() {
 	setGuiFont(appGUI.status)
 	setGuiFont(appGUI.sort)
 	setGuiFont(appGUI.region)
+	setGuiFont(appGUI.sortCombo)
+	setGuiFont(appGUI.regionCombo)
 	setGuiFont(appGUI.list)
 	setGuiFont(appGUI.refresh)
 	setGuiFont(appGUI.connect)
@@ -307,15 +320,59 @@ func populateGUIList() {
 	if len(appGUI.nodes) == 0 {
 		setText(appGUI.status, "وضعیت: فهرست سرور در دسترس نیست؛ روی «بروزرسانی سرورها» بزنید.")
 	} else {
-		setText(appGUI.status, fmt.Sprintf("وضعیت: قطع | %d سرور در فهرست", len(appGUI.nodes)))
+		setText(appGUI.status, fmt.Sprintf("وضعیت: قطع | %d سرور | مرتب‌سازی: %s | منطقه: %s", len(appGUI.nodes), comboText(appGUI.sortCombo), comboText(appGUI.regionCombo)))
 	}
 }
 
-func countryText(n Node) string {
-	if n.Country != "" {
-		return n.Country
+func countryText(n Node) string { return nodeRegion(n) }
+
+func speedText(n Node) string {
+	lat := n.LocalLatencyMs
+	if lat <= 0 { lat = n.RemoteLatencyMs }
+	if lat <= 0 { return "-" }
+	return fmt.Sprintf("%dms", lat)
+}
+
+func refreshRegions() {
+	if appGUI == nil || appGUI.regionCombo == 0 { return }
+	sendMessageW.Call(appGUI.regionCombo, cbReset, 0, 0)
+	regions := map[string]bool{"ALL": true}
+	for _, n := range appGUI.nodes { regions[nodeRegion(n)] = true }
+	keys := make([]string, 0, len(regions))
+	for r := range regions { keys = append(keys, r) }
+	sort.Strings(keys)
+	for _, r := range keys {
+		sendMessageW.Call(appGUI.regionCombo, cbAddString, 0, uintptr(unsafe.Pointer(utf16(r))))
 	}
-	return "Public"
+	sendMessageW.Call(appGUI.regionCombo, cbSetCurSel, 0, 0)
+}
+
+func comboText(hwnd uintptr) string {
+	idx, _, _ := sendMessageW.Call(hwnd, cbGetCurSel, 0, 0)
+	if int(idx) < 0 { return "" }
+	var buf [128]uint16
+	sendMessageW.Call(hwnd, cbGetLBText, idx, uintptr(unsafe.Pointer(&buf[0])))
+	return syscall.UTF16ToString(buf[:])
+}
+
+func sortMode() string {
+	switch comboText(appGUI.sortCombo) {
+	case "سرعت": return "SPEED"
+	case "منطقه": return "REGION"
+	default: return "PRIORITY"
+	}
+}
+
+func selectedRegion() string {
+	r := comboText(appGUI.regionCombo)
+	if r == "" || r == "ALL" { return "ALL" }
+	return r
+}
+
+func applyFilters() {
+	if appGUI == nil || len(appGUI.nodes) == 0 { return }
+	appGUI.nodes = sortNodes(appGUI.nodes, sortMode(), selectedRegion())
+	populateGUIList()
 }
 
 func initialRefresh() {
@@ -492,9 +549,9 @@ func guiWndProc(hwnd uintptr, m uint32, wParam, lParam uintptr) uintptr {
 		notify := uint16(wParam >> 16)
 		switch uintptr(id) {
 		case btnRefresh:
-			if notify == bnClicked && !appGUI.busy {
-				go initialRefresh()
-			}
+			if notify == bnClicked && !appGUI.busy { go initialRefresh() }
+		case cboSort, cboRegion:
+			if notify == cboSelChange && !appGUI.busy { applyFilters() }
 		case cmbSort, cmbRegion:
 			if notify == cbnSelChange && !appGUI.busy {
 				applyComboView()
