@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	appVersion     = "0.2.0"
+	appVersion     = "0.3.0"
 	singBoxVersion = "1.14.1"
 	singBoxSHA256  = "5197f16d492d93202dc623622149a6ed040f8eca263128f91d603f2b901baa89"
 	maxArchiveSize = 200 << 20
