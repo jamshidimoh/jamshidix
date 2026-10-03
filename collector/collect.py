@@ -165,7 +165,7 @@ def tcp_probe(node):
             pass
         node["remote_ok"] = True
         node["remote_latency_ms"] = max(1, int((time.monotonic() - start) * 1000))
-        node["priority"] = min(100, SOURCE_PRIORITY.get(node["source"], 70) + max(0, 18 - node["remote_latency_ms"] // 50) + (4 if node.get("region") else 0))
+        node["priority"] = 50
         return node
     except Exception:
         return None
