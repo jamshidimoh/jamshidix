@@ -14,11 +14,13 @@ import (
 
 const (
 	guiClassName = "JamshidixWindow"
-	btnRefresh   = 1001
-	btnConnect   = 1002
+	btnRefresh    = 1001
+	btnConnect    = 1002
 	btnDisconnect = 1003
-	lstServers   = 1101
-	lblStatus    = 1201
+	lstServers    = 1101
+	lblStatus     = 1201
+	cmbSort       = 1202
+	cmbRegion     = 1203
 	msgRefreshDone uint32 = 0x8001
 	msgActionDone  uint32 = 0x8002
 
@@ -26,11 +28,18 @@ const (
 	wsVisible      = 0x10000000
 	wsChild        = 0x40000000
 	wsVScroll      = 0x00200000
+	wsHScroll      = 0x00100000
+	cbDropDownList = 0x0003
 	wsExClientEdge = 0x00000200
 	lbNotify       = 0x00000001
 	lbReset        = 0x0184
 	lbAddString    = 0x0180
 	lbGetCurSel    = 0x0188
+	cbAddString    = 0x0143
+	cbResetContent = 0x014B
+	cbGetCurSel    = 0x0147
+	cbSetCurSel    = 0x014E
+	cbnSelChange   = 1
 	wmDestroy      = 0x0002
 	wmCommand      = 0x0111
 	wmSetFont      = 0x0030
@@ -67,10 +76,16 @@ type guiState struct {
 	hwnd       uintptr
 	list       uintptr
 	status     uintptr
+	sort       uintptr
+	region     uintptr
 	refresh    uintptr
 	connect    uintptr
 	disconnect uintptr
 	nodes      []Node
+	allNodes   []Node
+	regions    []string
+	sortMode   string
+	regionMode string
 	busy       bool
 	pending    Directory
 	pendingMsg string
@@ -145,7 +160,8 @@ func runGUIElevated() error {
 	if err != nil {
 		d = Directory{Version: 1}
 	}
-	appGUI = &guiState{nodes: d.Nodes}
+	appGUI = &guiState{allNodes: d.Nodes, sortMode: "اولویت", regionMode: "همه مناطق"}
+	appGUI.applyView()
 	instance, _, _ := getModuleHandleW.Call(0)
 	cursor, _, _ := loadCursorW.Call(0, 32512)
 	className := utf16(guiClassName)
@@ -195,15 +211,79 @@ func runGUIElevated() error {
 
 func createGUIControls() {
 	appGUI.status = createControl("STATIC", "وضعیت: در حال راه‌اندازی…", wsChild|wsVisible, 0, 20, 18, 700, 26, lblStatus)
-	appGUI.list = createControl("LISTBOX", "", wsChild|wsVisible|wsVScroll|lbNotify, wsExClientEdge, 20, 65, 700, 380, lstServers)
-	appGUI.refresh = createControl("BUTTON", "بروزرسانی سرورها", wsChild|wsVisible, 0, 20, 465, 170, 38, btnRefresh)
-	appGUI.connect = createControl("BUTTON", "اتصال", wsChild|wsVisible, 0, 205, 465, 120, 38, btnConnect)
-	appGUI.disconnect = createControl("BUTTON", "قطع اتصال", wsChild|wsVisible, 340, 465, 120, 38, btnDisconnect)
+	appGUI.sort = createControl("COMBOBOX", "", wsChild|wsVisible|wsVScroll|cbDropDownList, wsExClientEdge, 20, 50, 190, 28, cmbSort)
+	appGUI.region = createControl("COMBOBOX", "", wsChild|wsVisible|wsVScroll|cbDropDownList, wsExClientEdge, 225, 50, 220, 28, cmbRegion)
+	appGUI.list = createControl("LISTBOX", "", wsChild|wsVisible|wsVScroll|lbNotify, wsExClientEdge, 20, 92, 700, 370, lstServers)
+	appGUI.refresh = createControl("BUTTON", "بروزرسانی سرورها", wsChild|wsVisible, 0, 20, 475, 170, 38, btnRefresh)
+	appGUI.connect = createControl("BUTTON", "اتصال", wsChild|wsVisible, 0, 205, 475, 120, 38, btnConnect)
+	appGUI.disconnect = createControl("BUTTON", "قطع اتصال", wsChild|wsVisible, 340, 475, 120, 38, btnDisconnect)
 	setGuiFont(appGUI.status)
+	setGuiFont(appGUI.sort)
+	setGuiFont(appGUI.region)
 	setGuiFont(appGUI.list)
 	setGuiFont(appGUI.refresh)
 	setGuiFont(appGUI.connect)
 	setGuiFont(appGUI.disconnect)
+	populateRegionCombo()
+	populateSortCombo()
+	populateGUIList()
+}
+
+func (g *guiState) applyView() {
+	if g == nil {
+		return
+	}
+	d := Directory{Version: 1, Nodes: append([]Node(nil), g.allNodes...)}
+	g.nodes = applyNodeView(d, g.sortMode, g.regionMode).Nodes
+}
+
+func populateSortCombo() {
+	if appGUI == nil || appGUI.sort == 0 { return }
+	sendMessageW.Call(appGUI.sort, cbResetContent, 0, 0)
+	for _, mode := range []string{"اولویت", "سرعت", "منطقه", "تازگی"} {
+		sendMessageW.Call(appGUI.sort, cbAddString, 0, uintptr(unsafe.Pointer(utf16(mode))))
+	}
+	sendMessageW.Call(appGUI.sort, cbSetCurSel, 0, 0)
+}
+
+func populateRegionCombo() {
+	if appGUI == nil || appGUI.region == 0 { return }
+	seen := map[string]bool{"همه مناطق": true}
+	regions := []string{"همه مناطق"}
+	for _, n := range appGUI.allNodes {
+		r := n.Region
+		if r == "" { r = countryText(n) }
+		if r == "" { r = "نامشخص" }
+		if !seen[r] {
+			seen[r] = true
+			regions = append(regions, r)
+		}
+	}
+	appGUI.regions = regions
+	sendMessageW.Call(appGUI.region, cbResetContent, 0, 0)
+	for _, r := range regions {
+		sendMessageW.Call(appGUI.region, cbAddString, 0, uintptr(unsafe.Pointer(utf16(r))))
+	}
+	sendMessageW.Call(appGUI.region, cbSetCurSel, 0, 0)
+}
+
+func comboIndex(hwnd uintptr) int {
+	idx, _, _ := sendMessageW.Call(hwnd, cbGetCurSel, 0, 0)
+	if int(idx) < 0 { return 0 }
+	return int(idx)
+}
+
+func applyComboView() {
+	if appGUI == nil { return }
+	si := comboIndex(appGUI.sort)
+	if si >= 0 && si < 4 {
+		appGUI.sortMode = []string{"اولویت", "سرعت", "منطقه", "تازگی"}[si]
+	}
+	ri := comboIndex(appGUI.region)
+	if ri >= 0 && ri < len(appGUI.regions) {
+		appGUI.regionMode = appGUI.regions[ri]
+	}
+	appGUI.applyView()
 	populateGUIList()
 }
 
@@ -213,13 +293,15 @@ func populateGUIList() {
 	}
 	sendMessageW.Call(appGUI.list, lbReset, 0, 0)
 	for _, n := range appGUI.nodes {
-		status := "remote"
+		status := "تست‌نشده"
 		if n.LocalOK {
 			status = fmt.Sprintf("%dms", n.LocalLatencyMs)
 		} else if n.LocalLatencyMs < 0 {
-			status = "blocked?"
+			status = "دسترسی محلی؟"
 		}
-		label := fmt.Sprintf("%s | %s | %s | %s", n.Name, countryText(n), status, n.Source)
+		region := n.Region
+		if region == "" { region = countryText(n) }
+		label := fmt.Sprintf("%s | منطقه %s | %s | اولویت %d", n.Name, region, status, n.Priority)
 		sendMessageW.Call(appGUI.list, lbAddString, 0, uintptr(unsafe.Pointer(utf16(label))))
 	}
 	if len(appGUI.nodes) == 0 {
@@ -242,10 +324,13 @@ func initialRefresh() {
 	if err == nil {
 		d = decorateLocalReachability(d)
 		appGUI.pending = d
+		appGUI.allNodes = d.Nodes
 		appGUI.pendingMsg = fmt.Sprintf("فهرست به‌روزرسانی شد؛ منبع: %s", mirror)
 	} else {
 		if cached, e := loadDirectory(); e == nil {
-			appGUI.pending = decorateLocalReachability(cached)
+			cached = decorateLocalReachability(cached)
+			appGUI.pending = cached
+			appGUI.allNodes = cached.Nodes
 			appGUI.pendingMsg = "به‌روزرسانی ناموفق بود؛ آخرین فهرست ذخیره‌شده استفاده شد."
 		} else {
 			appGUI.pendingMsg = "فهرست سرورها قابل دریافت نیست."
@@ -395,7 +480,9 @@ func guiWndProc(hwnd uintptr, m uint32, wParam, lParam uintptr) uintptr {
 		height := int32(uint16(lParam >> 16))
 		if appGUI != nil {
 			setWindowPos.Call(appGUI.status, 0, 20, 18, uintptr(width-40), 26, 0)
-			setWindowPos.Call(appGUI.list, 0, 20, 65, uintptr(width-40), uintptr(height-155), 0)
+			setWindowPos.Call(appGUI.sort, 0, 20, 50, 190, 28, 0)
+			setWindowPos.Call(appGUI.region, 0, 225, 50, 220, 28, 0)
+			setWindowPos.Call(appGUI.list, 0, 20, 92, uintptr(width-40), uintptr(height-165), 0)
 			setWindowPos.Call(appGUI.refresh, 0, 20, uintptr(height-72), 170, 38, 0)
 			setWindowPos.Call(appGUI.connect, 0, 205, uintptr(height-72), 120, 38, 0)
 			setWindowPos.Call(appGUI.disconnect, 0, 340, uintptr(height-72), 120, 38, 0)
@@ -407,6 +494,10 @@ func guiWndProc(hwnd uintptr, m uint32, wParam, lParam uintptr) uintptr {
 		case btnRefresh:
 			if notify == bnClicked && !appGUI.busy {
 				go initialRefresh()
+			}
+		case cmbSort, cmbRegion:
+			if notify == cbnSelChange && !appGUI.busy {
+				applyComboView()
 			}
 		case btnConnect:
 			if notify == bnClicked {
@@ -422,7 +513,9 @@ func guiWndProc(hwnd uintptr, m uint32, wParam, lParam uintptr) uintptr {
 			}
 		}
 	case msgRefreshDone:
-		appGUI.nodes = appGUI.pending.Nodes
+		appGUI.allNodes = appGUI.pending.Nodes
+		populateRegionCombo()
+		appGUI.applyView()
 		appGUI.busy = false
 		populateGUIList()
 		setText(appGUI.status, "وضعیت: "+appGUI.pendingMsg)
