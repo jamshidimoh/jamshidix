@@ -37,7 +37,7 @@ FALLBACK_LINKS = [
 
 UUID_RE = re.compile(r"^[0-9a-fA-F-]{36}$")
 PBK_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
-SID_RE = re.compile(r"^([0-9a-fA-F]{2}){1,8}$")
+SID_RE = re.compile(r"^([0-9a-fA-F]{2}){0,8}$")
 
 
 def get_text(url):
@@ -59,7 +59,7 @@ def discover_latest_text_page(base_url):
 
 
 def parse_vless(line, source):
-    m = re.search(r"(vless://[^\s'"<>]+)", line.strip())
+    m = re.search(r"(vless://[^\s'\"<>]+)", line.strip())
     if not m:
         return None
     raw = m.group(1).rstrip(".,;)")
