@@ -18,27 +18,23 @@ const (
 	btnRefresh    = 1001
 	btnConnect    = 1002
 	btnDisconnect = 1003
-	cboSort      = 1004
-	cboRegion    = 1005
-	lstServers    = 1101
-	lblStatus     = 1201
-	cmbSort       = 1202
-	cmbRegion     = 1203
+	cboSort        = 1004
+	cboRegion      = 1005
+	lstServers     = 1101
+	lblStatus      = 1201
 	msgRefreshDone uint32 = 0x8001
 	msgActionDone  uint32 = 0x8002
-	cboSelChange uint16 = 1
-	cbAddString uint32 = 0x0143
-	cbReset uint32 = 0x014B
-	cbSetCurSel uint32 = 0x014E
-	cbGetCurSel uint32 = 0x0147
-	cbGetLBText uint32 = 0x0148
+	cboSelChange   uint16 = 1
+	cbAddString    uint32 = 0x0143
+	cbResetContent uint32 = 0x014B
+	cbGetCurSel   uint32 = 0x0147
+	cbSetCurSel   uint32 = 0x014E
 
 	wsOverlapped   = 0x00CF0000
 	wsVisible      = 0x10000000
 	wsChild        = 0x40000000
 	wsVScroll      = 0x00200000
 	wsHScroll      = 0x00100000
-	cbDropDownList = 0x0003
 	wsExClientEdge = 0x00000200
 	lbNotify       = 0x00000001
 	lbReset        = 0x0184
@@ -83,8 +79,6 @@ var (
 type guiState struct {
 	hwnd       uintptr
 	list       uintptr
-	sortCombo  uintptr
-	regionCombo uintptr
 	status     uintptr
 	refresh    uintptr
 	connect    uintptr
@@ -220,8 +214,8 @@ func runGUIElevated() error {
 
 func createGUIControls() {
 	appGUI.status = createControl("STATIC", "وضعیت: در حال راه‌اندازی…", wsChild|wsVisible, 0, 20, 18, 700, 26, lblStatus)
-	appGUI.sort = createControl("COMBOBOX", "", wsChild|wsVisible|wsVScroll|cbDropDownList, wsExClientEdge, 20, 50, 190, 28, cmbSort)
-	appGUI.region = createControl("COMBOBOX", "", wsChild|wsVisible|wsVScroll|cbDropDownList, wsExClientEdge, 225, 50, 220, 28, cmbRegion)
+	appGUI.sort = createControl("COMBOBOX", "", wsChild|wsVisible|wsVScroll, wsExClientEdge, 20, 50, 190, 28, cboSort)
+	appGUI.region = createControl("COMBOBOX", "", wsChild|wsVisible|wsVScroll, wsExClientEdge, 225, 50, 220, 28, cboRegion)
 	appGUI.list = createControl("LISTBOX", "", wsChild|wsVisible|wsVScroll|lbNotify, wsExClientEdge, 20, 92, 700, 370, lstServers)
 	appGUI.refresh = createControl("BUTTON", "بروزرسانی سرورها", wsChild|wsVisible, 0, 20, 475, 170, 38, btnRefresh)
 	appGUI.connect = createControl("BUTTON", "اتصال", wsChild|wsVisible, 0, 205, 475, 120, 38, btnConnect)
@@ -313,7 +307,7 @@ func populateGUIList() {
 	if len(appGUI.nodes) == 0 {
 		setText(appGUI.status, "وضعیت: فهرست سرور در دسترس نیست؛ روی «بروزرسانی سرورها» بزنید.")
 	} else {
-		setText(appGUI.status, fmt.Sprintf("وضعیت: قطع | %d سرور | مرتب‌سازی: %s | منطقه: %s", len(appGUI.nodes), comboText(appGUI.sortCombo), comboText(appGUI.regionCombo)))
+		setText(appGUI.status, fmt.Sprintf("وضعیت: قطع | %d سرور | مرتب‌سازی: %s | منطقه: %s", len(appGUI.nodes), appGUI.sortMode, appGUI.regionMode))
 	}
 }
 
@@ -529,6 +523,7 @@ func guiWndProc(hwnd uintptr, m uint32, wParam, lParam uintptr) uintptr {
 	case msgRefreshDone:
 		appGUI.allNodes = appGUI.pending.Nodes
 		populateRegionCombo()
+		appGUI.regionMode = "همه مناطق"
 		appGUI.applyView()
 		appGUI.busy = false
 		populateGUIList()
