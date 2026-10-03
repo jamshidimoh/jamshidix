@@ -35,44 +35,7 @@ const (
 var (
 	uuidRe    = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	pbkRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
-	shortIDRe = regexp.MustCompile(`^([0-9a-fA-F]{2}){1,8}package main
-
-import (
-	_ "embed"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"net"
-	"net/url"
-	"regexp"
-	"strconv"
-	"strings"
-)
-
-//go:embed assets/client.config.template.json
-var clientTemplate []byte
-
-// Profile is everything a client needs to reach a VLESS + REALITY gateway.
-type Profile struct {
-	Server      string
-	Port        int
-	UUID        string
-	PublicKey   string
-	ShortID     string
-	SNI         string
-	Flow        string
-	Fingerprint string
-}
-
-const (
-	defaultFlow        = "xtls-rprx-vision"
-	defaultFingerprint = "chrome"
-)
-
-var (
-	uuidRe    = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-	pbkRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
-	)
+	shortIDRe = regexp.MustCompile(`^([0-9a-fA-F]{2}){1,8}$`)
 	hostRe    = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$`)
 	linkRe    = regexp.MustCompile(`vless://[^\s"'<>]+`)
 
@@ -108,7 +71,7 @@ func (p *Profile) Validate() error {
 	case !pbkRe.MatchString(p.PublicKey):
 		return errors.New("invalid REALITY public key (expected 43 base64url characters)")
 	case !shortIDRe.MatchString(p.ShortID):
-		return errors.New("invalid short id (expected 0-16 hex characters, even length)")
+		return errors.New("invalid short id (expected 2-16 hex characters, even length)")
 	case !validHost(p.SNI):
 		return fmt.Errorf("invalid handshake host (SNI) %q", p.SNI)
 	case p.Flow != defaultFlow:
@@ -119,13 +82,10 @@ func (p *Profile) Validate() error {
 	return nil
 }
 
-// findLink extracts the first vless:// link from arbitrary text (clipboard, file).
 func findLink(text string) string {
 	return strings.TrimRight(linkRe.FindString(text), ".,;)")
 }
 
-// parseVLESSLink understands the common share-link form:
-// vless://UUID@HOST:PORT?security=reality&pbk=KEY&sid=ID&sni=HOST&flow=...&fp=...#name
 func parseVLESSLink(raw string) (Profile, error) {
 	raw = strings.TrimSpace(raw)
 	if !strings.HasPrefix(strings.ToLower(raw), "vless://") {
@@ -136,8 +96,8 @@ func parseVLESSLink(raw string) (Profile, error) {
 		return Profile{}, fmt.Errorf("malformed link: %w", err)
 	}
 	q := u.Query()
-	if sec := strings.ToLower(q.Get("security")); sec != "reality" {
-		return Profile{}, fmt.Errorf("unsupported security %q: only REALITY links are supported", sec)
+	if strings.ToLower(q.Get("security")) != "reality" {
+		return Profile{}, errors.New("only REALITY links are supported")
 	}
 	if t := strings.ToLower(q.Get("type")); t != "" && t != "tcp" {
 		return Profile{}, fmt.Errorf("unsupported transport %q: only tcp is supported", t)
@@ -145,18 +105,17 @@ func parseVLESSLink(raw string) (Profile, error) {
 	if e := strings.ToLower(q.Get("encryption")); e != "" && e != "none" {
 		return Profile{}, fmt.Errorf("unsupported encryption %q", e)
 	}
+
 	p := Profile{
-		Server:      u.Hostname(),
-		UUID:        u.User.Username(),
-		PublicKey:   q.Get("pbk"),
-		ShortID:     q.Get("sid"),
-		SNI:         q.Get("sni"),
-		Flow:        q.Get("flow"),
+		Server: u.Hostname(), UUID: u.User.Username(),
+		PublicKey: q.Get("pbk"), ShortID: q.Get("sid"),
+		SNI: q.Get("sni"), Flow: q.Get("flow"),
 		Fingerprint: strings.ToLower(q.Get("fp")),
+		Port: 443,
 	}
-	p.Port = 443
 	if ps := u.Port(); ps != "" {
-		if p.Port, err = strconv.Atoi(ps); err != nil {
+		p.Port, err = strconv.Atoi(ps)
+		if err != nil {
 			return Profile{}, fmt.Errorf("invalid port %q", ps)
 		}
 	}
@@ -166,7 +125,6 @@ func parseVLESSLink(raw string) (Profile, error) {
 	return p, nil
 }
 
-// buildLink is the inverse of parseVLESSLink.
 func buildLink(p Profile, name string) (string, error) {
 	if err := p.Validate(); err != nil {
 		return "", err
@@ -180,8 +138,8 @@ func buildLink(p Profile, name string) (string, error) {
 	q.Set("pbk", p.PublicKey)
 	q.Set("sid", p.ShortID)
 	q.Set("type", "tcp")
-	hostport := net.JoinHostPort(p.Server, strconv.Itoa(p.Port))
-	return fmt.Sprintf("vless://%s@%s?%s#%s", p.UUID, hostport, q.Encode(), url.PathEscape(name)), nil
+	return fmt.Sprintf("vless://%s@%s?%s#%s",
+		p.UUID, net.JoinHostPort(p.Server, strconv.Itoa(p.Port)), q.Encode(), url.PathEscape(name)), nil
 }
 
 func child(m map[string]any, key string) (map[string]any, error) {
@@ -192,8 +150,6 @@ func child(m map[string]any, key string) (map[string]any, error) {
 	return v, nil
 }
 
-// renderClientConfig fills the embedded template through structured JSON edits
-// (never string substitution), so no input can alter the config structure.
 func renderClientConfig(p Profile) ([]byte, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
@@ -213,7 +169,7 @@ func renderClientConfig(p Profile) ([]byte, error) {
 		}
 	}
 	if proxy == nil {
-		return nil, errors.New("client template has no \"proxy\" outbound")
+		return nil, errors.New("client template has no "proxy" outbound")
 	}
 	tls, err := child(proxy, "tls")
 	if err != nil {
