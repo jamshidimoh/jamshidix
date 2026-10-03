@@ -1,7 +1,7 @@
 name: Build Windows executable
 
 # Produces ONE self-contained Jamshidix.exe (official sing-box embedded,
-# SHA-256 pinned). A successful main build also creates the v0.3.0 Release if absent.
+# SHA-256 pinned). A successful main build creates the stable Release defined by VERSION if absent.
 on:
   workflow_dispatch:
   push:
@@ -18,7 +18,7 @@ on:
       - ".github/workflows/build-windows.yml"
 
 permissions:
-  contents: write # only used by the release step on tags
+  contents: write
 
 jobs:
   build-windows:
@@ -98,12 +98,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          RELEASE_TAG="v0.3.0"
+          RELEASE_TAG="v$(tr -d '[:space:]' < VERSION)"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Release $RELEASE_TAG already exists."
             exit 0
           fi
           gh release create "$RELEASE_TAG" dist/Jamshidix.exe dist/Jamshidix.exe.sha256 \
-            --title "Jamshidix 0.3.0" \
+            --title "Jamshidix ${RELEASE_TAG#v}" \
             --notes "Self-contained Windows GUI client with free public server directory, local preflight, region filtering and priority/speed sorting." \
             --latest
