@@ -23,7 +23,6 @@ DISCOVERY_PAGES = [
     ("freevlessnode", "https://freevlessnode.github.io/"),
 ]
 OUT = Path("directory/nodes.json")
-SEED = Path("cmd/jamshidix/assets/directory.seed.json")
 MAX_CANDIDATES = 1500
 MAX_OUTPUT = 250
 TIMEOUT = 10
@@ -233,8 +232,6 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     data = json.dumps(directory, ensure_ascii=False, indent=2) + "\n"
     OUT.write_text(data, encoding="utf-8")
-    SEED.parent.mkdir(parents=True, exist_ok=True)
-    SEED.write_text(data, encoding="utf-8")
     print(f"published nodes: {len(checked)}")
     if len(checked) == 0:
         raise SystemExit("no validated VLESS/REALITY candidates found")
