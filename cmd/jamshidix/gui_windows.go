@@ -64,12 +64,12 @@ var (
 	dispatchMsg    = guiUser32.NewProc("DispatchMessageW")
 	postQuit       = guiUser32.NewProc("PostQuitMessage")
 	postMessage    = guiUser32.NewProc("PostMessageW")
-	setWindowText = guiUser32.NewProc("SetWindowTextW")
-	sendMessage   = guiUser32.NewProc("SendMessageW")
-	setWindowPos  = guiUser32.NewProc("SetWindowPos")
+	setWindowText  = guiUser32.NewProc("SetWindowTextW")
+	sendMessage    = guiUser32.NewProc("SendMessageW")
+	setWindowPos   = guiUser32.NewProc("SetWindowPos")
 	getStockObject = guiUser32.NewProc("GetStockObject")
-	loadCursor    = guiUser32.NewProc("LoadCursorW")
-	getModule     = guiKernel32.NewProc("GetModuleHandleW")
+	loadCursor     = guiUser32.NewProc("LoadCursorW")
+	getModule      = guiKernel32.NewProc("GetModuleHandleW")
 )
 
 type guiState struct {
@@ -294,7 +294,7 @@ func applyGUIFilters() {
 		appGUI.sortMode = "سرعت"
 	case "منطقه":
 		appGUI.sortMode = "منطقه"
-		default:
+	default:
 		appGUI.sortMode = "اولویت"
 	}
 	r := comboText(appGUI.regionCombo)

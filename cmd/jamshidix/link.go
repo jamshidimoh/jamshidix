@@ -110,7 +110,7 @@ func parseVLESSLink(raw string) (Profile, error) {
 		PublicKey: q.Get("pbk"), ShortID: q.Get("sid"),
 		SNI: q.Get("sni"), Flow: q.Get("flow"),
 		Fingerprint: strings.ToLower(q.Get("fp")),
-		Port: 443,
+		Port:        443,
 	}
 	if ps := u.Port(); ps != "" {
 		p.Port, err = strconv.Atoi(ps)

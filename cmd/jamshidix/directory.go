@@ -43,10 +43,10 @@ type Node struct {
 }
 
 type Directory struct {
-	Version     int       `json:"version"`
-	GeneratedAt string    `json:"generated_at"`
-	Nodes       []Node    `json:"nodes"`
-	Sources     []string  `json:"sources,omitempty"`
+	Version     int      `json:"version"`
+	GeneratedAt string   `json:"generated_at"`
+	Nodes       []Node   `json:"nodes"`
+	Sources     []string `json:"sources,omitempty"`
 }
 
 var (
