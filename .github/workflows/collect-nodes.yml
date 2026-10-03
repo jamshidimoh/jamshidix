@@ -30,7 +30,7 @@ jobs:
         run: |
           git config user.name "jamshidix-bot"
           git config user.email "jamshidix-bot@users.noreply.github.com"
-          if git diff --quiet -- directory/nodes.json; then
+          if git diff --quiet -- directory/nodes.json && git diff --cached --quiet -- directory/nodes.json && test -f directory/nodes.json && git ls-files --error-unmatch directory/nodes.json >/dev/null 2>&1; then
             echo "Directory unchanged."
             exit 0
           fi
