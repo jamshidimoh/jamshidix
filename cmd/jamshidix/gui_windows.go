@@ -48,7 +48,6 @@ const (
 	cbResetContent = 0x014B
 	cbGetCurSel    = 0x0147
 	cbSetCurSel    = 0x014E
-	cbnSelChange   = 1
 	wmDestroy      = 0x0002
 	wmCommand      = 0x0111
 	wmSetFont      = 0x0030
@@ -87,8 +86,6 @@ type guiState struct {
 	sortCombo  uintptr
 	regionCombo uintptr
 	status     uintptr
-	sort       uintptr
-	region     uintptr
 	refresh    uintptr
 	connect    uintptr
 	disconnect uintptr
@@ -232,8 +229,6 @@ func createGUIControls() {
 	setGuiFont(appGUI.status)
 	setGuiFont(appGUI.sort)
 	setGuiFont(appGUI.region)
-	setGuiFont(appGUI.sortCombo)
-	setGuiFont(appGUI.regionCombo)
 	setGuiFont(appGUI.list)
 	setGuiFont(appGUI.refresh)
 	setGuiFont(appGUI.connect)
@@ -329,48 +324,6 @@ func speedText(n Node) string {
 	if lat <= 0 { lat = n.RemoteLatencyMs }
 	if lat <= 0 { return "-" }
 	return fmt.Sprintf("%dms", lat)
-}
-
-func refreshRegions() {
-	if appGUI == nil || appGUI.regionCombo == 0 { return }
-	sendMessageW.Call(appGUI.regionCombo, cbReset, 0, 0)
-	regions := map[string]bool{"ALL": true}
-	for _, n := range appGUI.nodes { regions[nodeRegion(n)] = true }
-	keys := make([]string, 0, len(regions))
-	for r := range regions { keys = append(keys, r) }
-	sort.Strings(keys)
-	for _, r := range keys {
-		sendMessageW.Call(appGUI.regionCombo, cbAddString, 0, uintptr(unsafe.Pointer(utf16(r))))
-	}
-	sendMessageW.Call(appGUI.regionCombo, cbSetCurSel, 0, 0)
-}
-
-func comboText(hwnd uintptr) string {
-	idx, _, _ := sendMessageW.Call(hwnd, cbGetCurSel, 0, 0)
-	if int(idx) < 0 { return "" }
-	var buf [128]uint16
-	sendMessageW.Call(hwnd, cbGetLBText, idx, uintptr(unsafe.Pointer(&buf[0])))
-	return syscall.UTF16ToString(buf[:])
-}
-
-func sortMode() string {
-	switch comboText(appGUI.sortCombo) {
-	case "سرعت": return "SPEED"
-	case "منطقه": return "REGION"
-	default: return "PRIORITY"
-	}
-}
-
-func selectedRegion() string {
-	r := comboText(appGUI.regionCombo)
-	if r == "" || r == "ALL" { return "ALL" }
-	return r
-}
-
-func applyFilters() {
-	if appGUI == nil || len(appGUI.nodes) == 0 { return }
-	appGUI.nodes = sortNodes(appGUI.nodes, sortMode(), selectedRegion())
-	populateGUIList()
 }
 
 func initialRefresh() {
@@ -559,11 +512,7 @@ func guiWndProc(hwnd uintptr, m uint32, wParam, lParam uintptr) uintptr {
 		case btnRefresh:
 			if notify == bnClicked && !appGUI.busy { go initialRefresh() }
 		case cboSort, cboRegion:
-			if notify == cboSelChange && !appGUI.busy { applyFilters() }
-		case cmbSort, cmbRegion:
-			if notify == cbnSelChange && !appGUI.busy {
-				applyComboView()
-			}
+			if notify == cboSelChange && !appGUI.busy { onComboChanged() }
 		case btnConnect:
 			if notify == bnClicked {
 				connectSelected()
@@ -598,4 +547,3 @@ func guiWndProc(hwnd uintptr, m uint32, wParam, lParam uintptr) uintptr {
 	return returnValue
 }
 
-// diagnostic trigger
