@@ -17,6 +17,10 @@ on:
       - "VERSION"
       - ".github/workflows/build-windows.yml"
 
+concurrency:
+  group: jamshidix-build-main
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -36,6 +40,14 @@ jobs:
         shell: bash
         run: |
           test "v$(tr -d '[:space:]' < VERSION)" = "${GITHUB_REF_NAME}" || { echo "Tag ${GITHUB_REF_NAME} != VERSION file" >&2; exit 1; }
+
+      - name: Version consistency
+        shell: bash
+        run: |
+          test "$(tr -d '[:space:]' < VERSION)" = "$(sed -n 's/.*appVersion[[:space:]]*= *"\([^"]*\)".*/\1/p' cmd/jamshidix/singbox.go)" || {
+            echo "VERSION and appVersion differ." >&2
+            exit 1
+          }
 
       - name: Test
         shell: bash
@@ -99,6 +111,10 @@ jobs:
         shell: bash
         run: |
           RELEASE_TAG="v$(tr -d '[:space:]' < VERSION)"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main 2>/dev/null || git rev-parse HEAD)" || {
+            echo "Main advanced after this build started; refusing stale release." >&2
+            exit 1
+          }
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Release $RELEASE_TAG already exists."
             exit 0
