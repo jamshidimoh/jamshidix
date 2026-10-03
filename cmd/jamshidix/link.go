@@ -35,7 +35,44 @@ const (
 var (
 	uuidRe    = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	pbkRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
-	shortIDRe = regexp.MustCompile(`^([0-9a-fA-F]{2}){1,8}$`)
+	shortIDRe = regexp.MustCompile(`^([0-9a-fA-F]{2}){0,8}package main
+
+import (
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+//go:embed assets/client.config.template.json
+var clientTemplate []byte
+
+// Profile is everything a client needs to reach a VLESS + REALITY gateway.
+type Profile struct {
+	Server      string
+	Port        int
+	UUID        string
+	PublicKey   string
+	ShortID     string
+	SNI         string
+	Flow        string
+	Fingerprint string
+}
+
+const (
+	defaultFlow        = "xtls-rprx-vision"
+	defaultFingerprint = "chrome"
+)
+
+var (
+	uuidRe    = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+	pbkRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
+	)
 	hostRe    = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$`)
 	linkRe    = regexp.MustCompile(`vless://[^\s"'<>]+`)
 
@@ -71,7 +108,7 @@ func (p *Profile) Validate() error {
 	case !pbkRe.MatchString(p.PublicKey):
 		return errors.New("invalid REALITY public key (expected 43 base64url characters)")
 	case !shortIDRe.MatchString(p.ShortID):
-		return errors.New("invalid short id (expected 2-16 hex characters, even length)")
+		return errors.New("invalid short id (expected 0-16 hex characters, even length)")
 	case !validHost(p.SNI):
 		return fmt.Errorf("invalid handshake host (SNI) %q", p.SNI)
 	case p.Flow != defaultFlow:
