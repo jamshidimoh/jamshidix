@@ -70,9 +70,222 @@ const (
 )
 
 var (
+	uuidRe    = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}package main
+
+import (
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+//go:embed assets/client.config.template.json
+var clientTemplate []byte
+
+// Profile is everything a client needs to reach a VLESS + REALITY gateway.
+type Profile struct {
+	Server      string
+	Port        int
+	UUID        string
+	PublicKey   string
+	ShortID     string
+	SNI         string
+	Flow        string
+	Fingerprint string
+}
+
+const (
+	defaultFlow        = "xtls-rprx-vision"
+	defaultFingerprint = "chrome"
+)
+
+var (
 	uuidRe    = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	pbkRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
-	)
+	shortIDRe = regexp.MustCompile(`^([0-9a-fA-F]{2}){0,8}package main
+
+import (
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+//go:embed assets/client.config.template.json
+var clientTemplate []byte
+
+// Profile is everything a client needs to reach a VLESS + REALITY gateway.
+type Profile struct {
+	Server      string
+	Port        int
+	UUID        string
+	PublicKey   string
+	ShortID     string
+	SNI         string
+	Flow        string
+	Fingerprint string
+}
+
+const (
+	defaultFlow        = "xtls-rprx-vision"
+	defaultFingerprint = "chrome"
+)
+
+)
+	pbkRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}package main
+
+import (
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+//go:embed assets/client.config.template.json
+var clientTemplate []byte
+
+// Profile is everything a client needs to reach a VLESS + REALITY gateway.
+type Profile struct {
+	Server      string
+	Port        int
+	UUID        string
+	PublicKey   string
+	ShortID     string
+	SNI         string
+	Flow        string
+	Fingerprint string
+}
+
+const (
+	defaultFlow        = "xtls-rprx-vision"
+	defaultFingerprint = "chrome"
+)
+
+var (
+	uuidRe    = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+	pbkRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
+	shortIDRe = regexp.MustCompile(`^([0-9a-fA-F]{2}){0,8}package main
+
+import (
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+//go:embed assets/client.config.template.json
+var clientTemplate []byte
+
+// Profile is everything a client needs to reach a VLESS + REALITY gateway.
+type Profile struct {
+	Server      string
+	Port        int
+	UUID        string
+	PublicKey   string
+	ShortID     string
+	SNI         string
+	Flow        string
+	Fingerprint string
+}
+
+const (
+	defaultFlow        = "xtls-rprx-vision"
+	defaultFingerprint = "chrome"
+)
+
+)
+	shortIDRe = regexp.MustCompile(`^([0-9a-fA-F]{2}){0,8}package main
+
+import (
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+//go:embed assets/client.config.template.json
+var clientTemplate []byte
+
+// Profile is everything a client needs to reach a VLESS + REALITY gateway.
+type Profile struct {
+	Server      string
+	Port        int
+	UUID        string
+	PublicKey   string
+	ShortID     string
+	SNI         string
+	Flow        string
+	Fingerprint string
+}
+
+const (
+	defaultFlow        = "xtls-rprx-vision"
+	defaultFingerprint = "chrome"
+)
+
+var (
+	uuidRe    = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+	pbkRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
+	shortIDRe = regexp.MustCompile(`^([0-9a-fA-F]{2}){0,8}package main
+
+import (
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+//go:embed assets/client.config.template.json
+var clientTemplate []byte
+
+// Profile is everything a client needs to reach a VLESS + REALITY gateway.
+type Profile struct {
+	Server      string
+	Port        int
+	UUID        string
+	PublicKey   string
+	ShortID     string
+	SNI         string
+	Flow        string
+	Fingerprint string
+}
+
+const (
+	defaultFlow        = "xtls-rprx-vision"
+	defaultFingerprint = "chrome"
+)
+
+)
 	hostRe    = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$`)
 	linkRe    = regexp.MustCompile(`vless://[^\s"'<>]+`)
 
