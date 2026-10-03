@@ -207,6 +207,22 @@ def main():
         print("remote TCP probing returned no reachable nodes; publishing validated candidates for local preflight")
         checked = nodes[:MAX_OUTPUT]
 
+    def stable_node(n):
+        return {k: n[k] for k in sorted(n) if k not in {"fetched_at"}}
+
+    existing = None
+    if OUT.exists():
+        try:
+            existing = json.loads(OUT.read_text(encoding="utf-8"))
+        except Exception:
+            existing = None
+
+    old_nodes = [stable_node(n) for n in (existing or {}).get("nodes", [])]
+    new_nodes = [stable_node(n) for n in checked]
+    if old_nodes == new_nodes:
+        print(f"directory unchanged: {len(checked)} nodes")
+        return
+
     now = datetime.now(timezone.utc).isoformat()
     directory = {
         "version": 1,
