@@ -20,8 +20,8 @@ const (
 	cmbRegion      = 1203
 	lstServers     = 1101
 	lblStatus      = 1201
-	msgRefreshDone uint32 = 0x8001
-	msgActionDone  uint32 = 0x8002
+	msgRefreshDone = 0x8001
+	msgActionDone  = 0x8002
 
 	wsOverlapped   = 0x00CF0000
 	wsVisible      = 0x10000000
