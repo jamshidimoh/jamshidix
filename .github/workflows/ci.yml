@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+      - "directory/**"
   pull_request:
 
 permissions:
