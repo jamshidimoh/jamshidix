@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2 — 2026-10-03
+
+- Native Windows GUI with free public server directory, priority/speed/region filtering and 15-minute automatic refresh.
+- Multi-mirror bootstrap, local cache, embedded emergency seed, local reachability preflight and egress verification.
+- Race-safe public directory publication and stable-release build gates.
+
+
 ## 0.2.0 — 2026-10-03
 
 - **Single-click for real:** paste/copy a `vless://` link, double-click the EXE. The link is imported from the clipboard or `link.txt`; no manual `client.json`.
