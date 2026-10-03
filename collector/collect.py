@@ -19,6 +19,7 @@ SOURCES = [
 DISCOVERY_PAGES = [
     ("vlessnode", "https://vlessnode.github.io/"),
     ("freevlessnode", "https://freevlessnode.github.io/"),
+    ("vlessnode", "https://vlessnode.github.io/"),
 ]
 OUT = Path("directory/nodes.json")
 SEED = Path("cmd/jamshidix/assets/directory.seed.json")
@@ -48,6 +49,35 @@ def discover_latest_text_page(base_url):
         dated.append((m.group(1) if m else "00000000", link))
     return sorted(dated, reverse=True)[0][1]
 
+
+SOURCE_PRIORITY = {"ebrasha": 90, "baarcuda": 86, "radikal": 82, "morpheus": 84, "freevlessnode": 78, "vlessnode": 80}
+
+def infer_region(name, host, sni):
+    text = f"{name} {host} {sni}".lower()
+    flags = {"🇩🇪":"DE","🇳🇱":"NL","🇫🇷":"FR","🇬🇧":"GB","🇺🇸":"US","🇨🇦":"CA","🇯🇵":"JP","🇭🇰":"HK","🇸🇬":"SG","🇰🇷":"KR","🇷🇺":"RU","🇫🇮":"FI","🇵🇱":"PL","🇹🇷":"TR","🇦🇿":"AZ","🇸🇪":"SE","🇨🇭":"CH"}
+    for flag, code in flags.items():
+        if flag in text:
+            return code
+    patterns = [
+        (r"\b(germany|de|fra|france)\b", "DE/FR"),
+        (r"\b(netherlands|nl|amsterdam)\b", "NL"),
+        (r"\b(france|paris)\b", "FR"),
+        (r"\b(uk|united.?kingdom|london|gb)\b", "GB"),
+        (r"\b(us|usa|america|new.?york|los.?angeles)\b", "US"),
+        (r"\b(canada|toronto|montreal)\b", "CA"),
+        (r"\b(japan|tokyo|jp)\b", "JP"),
+        (r"\b(hong.?kong|hk)\b", "HK"),
+        (r"\b(singapore|sg)\b", "SG"),
+        (r"\b(korea|seoul|kr)\b", "KR"),
+        (r"\b(russia|moscow|ru)\b", "RU"),
+        (r"\b(finland|helsinki|fi)\b", "FI"),
+        (r"\b(poland|warsaw|pl)\b", "PL"),
+        (r"\b(turkey|istanbul|tr)\b", "TR"),
+    ]
+    for pattern, code in patterns:
+        if re.search(pattern, text):
+            return code
+    return ""
 
 def parse_vless(line, source):
     m = re.search(r"(vless://[^\s'\"<>]+)", line.strip())
@@ -95,6 +125,8 @@ def parse_vless(line, source):
         "id": __import__("hashlib").sha256(key.encode()).hexdigest()[:16],
         "name": name[:100],
         "source": source,
+        "region": infer_region(name, host, sni),
+        "priority": SOURCE_PRIORITY.get(source, 70),
         "server": host,
         "port": port,
         "uuid": uuid,
