@@ -353,7 +353,7 @@ func initialRefresh() {
 
 func periodicRefresh() {
 	for {
-		time.Sleep(20 * time.Minute)
+		time.Sleep(15 * time.Minute)
 		if appGUI != nil && !appGUI.busy {
 			go initialRefresh()
 		}
