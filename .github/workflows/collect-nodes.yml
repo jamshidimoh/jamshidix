@@ -30,8 +30,9 @@ jobs:
         run: |
           set -euo pipefail
           test -s directory/nodes.json
-          CANDIDATE="$RUNNER_TEMP/nodes.json"
-          cp directory/nodes.json "$CANDIDATE"
+
+          candidate="$RUNNER_TEMP/jamshidix-nodes.json"
+          cp directory/nodes.json "$candidate"
 
           git config user.name "jamshidix-bot"
           git config user.email "jamshidix-bot@users.noreply.github.com"
@@ -41,40 +42,35 @@ jobs:
             git reset --hard origin/main
 
             if test -s directory/nodes.json; then
-              CURRENT_TS="$(python3 - <<'PY'
-import json
-from pathlib import Path
-p = Path("directory/nodes.json")
-try:
-    print(json.loads(p.read_text(encoding="utf-8")).get("generated_at", ""))
-except Exception:
-    print("")
+              current_ts="$(python3 -c 'import json; print(json.load(open("directory/nodes.json", encoding="utf-8")).get("generated_at", ""))')"
+              candidate_ts="$(python3 - "$candidate" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as f:
+    print(json.load(f).get("generated_at", ""))
 PY
 )"
-              CANDIDATE_TS="$(python3 - <<'PY'
-import json, os
-print(json.loads(open(os.environ["CANDIDATE"], encoding="utf-8").read()).get("generated_at", ""))
-PY
-)"
-              if [ -n "$CURRENT_TS" ] && [ -n "$CANDIDATE_TS" ] && [ "$CURRENT_TS" > "$CANDIDATE_TS" ]; then
-                echo "A newer directory is already published; discarding older candidate."
+              if [ -n "$current_ts" ] && [ -n "$candidate_ts" ] && [ "$current_ts" > "$candidate_ts" ]; then
+                echo "A newer directory is already published."
                 exit 0
               fi
             fi
 
-            cp "$CANDIDATE" directory/nodes.json
-            if git diff --quiet -- directory/nodes.json; then
+            cp "$candidate" directory/nodes.json
+            git add directory/nodes.json
+
+            if git diff --cached --quiet; then
               echo "Directory unchanged."
               exit 0
             fi
 
-            git add directory/nodes.json
             git commit -m "chore: refresh public free node directory"
+
             if git push origin HEAD:main; then
               echo "Directory published."
               exit 0
             fi
-            echo "Publish race detected; retrying against latest main."
+
+            echo "Concurrent main update detected; retrying."
           done
 
           echo "Unable to publish directory after retries." >&2
