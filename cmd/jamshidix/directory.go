@@ -40,8 +40,6 @@ type Node struct {
 	FetchedAt        string `json:"fetched_at"`
 	LocalOK          bool   `json:"-"`
 	LocalLatencyMs   int    `json:"-"`
-	Priority         int    `json:"priority,omitempty"`
-	Region           string `json:"region,omitempty"`
 }
 
 type Directory struct {
