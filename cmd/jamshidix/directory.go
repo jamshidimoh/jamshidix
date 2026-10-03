@@ -220,10 +220,16 @@ func probeNode(n Node) (bool, int) {
 	return true, int(time.Since(start).Milliseconds())
 }
 
+func nodeRegion(n Node) string {
+	if strings.TrimSpace(n.Region) != "" { return n.Region }
+	if strings.TrimSpace(n.Country) != "" { return n.Country }
+	return "نامشخص"
+}
+
 func applyNodeView(d Directory, sortMode, region string) Directory {
 	filtered := make([]Node, 0, len(d.Nodes))
 	for _, n := range d.Nodes {
-		if region == "" || region == "همه مناطق" || strings.EqualFold(n.Region, region) || (n.Region == "" && region == "نامشخص") {
+		if region == "" || region == "همه مناطق" || strings.EqualFold(nodeRegion(n), region) {
 			filtered = append(filtered, n)
 		}
 	}
@@ -236,9 +242,7 @@ func applyNodeView(d Directory, sortMode, region string) Directory {
 			if a.RemoteOK != b.RemoteOK { return a.RemoteOK }
 			return a.Priority > b.Priority
 		case "منطقه":
-			ar, br := a.Region, b.Region
-			if ar == "" { ar = "نامشخص" }
-			if br == "" { br = "نامشخص" }
+			ar, br := nodeRegion(a), nodeRegion(b)
 			if ar != br { return ar < br }
 			return a.Priority > b.Priority
 		case "تازگی":
