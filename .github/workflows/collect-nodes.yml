@@ -19,9 +19,27 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Collect and validate public VLESS nodes
-        run: python3 collector/collect.py
+        shell: bash
+        run: |
+          set +e
+          python3 collector/collect.py 2>&1 | tee collector/last-run.log
+          rc=${PIPESTATUS[0]}
+          echo "collector_exit_code=${rc}" >> collector/last-run.log
+          exit ${rc}
+
+      - name: Preserve collector diagnostics
+        if: always()
+        shell: bash
+        run: |
+          git config user.name "jamshidix-bot"
+          git config user.email "jamshidix-bot@users.noreply.github.com"
+          git add collector/last-run.log
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: record collector diagnostics"
+          git push
 
       - name: Publish changed directory
+        if: success()
         shell: bash
         run: |
           git config user.name "jamshidix-bot"
