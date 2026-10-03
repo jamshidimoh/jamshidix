@@ -1,0 +1,35 @@
+name: Collect free public nodes
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+  push:
+    paths:
+      - "collector/**"
+      - ".github/workflows/collect-nodes.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect and validate public VLESS nodes
+        run: python3 collector/collect.py
+
+      - name: Publish changed directory
+        shell: bash
+        run: |
+          git config user.name "jamshidix-bot"
+          git config user.email "jamshidix-bot@users.noreply.github.com"
+          if git diff --quiet -- directory/nodes.json cmd/jamshidix/assets/directory.seed.json; then
+            echo "Directory unchanged."
+            exit 0
+          fi
+          git add directory/nodes.json cmd/jamshidix/assets/directory.seed.json
+          git commit -m "chore: refresh public free node directory"
+          git push
