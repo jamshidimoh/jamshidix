@@ -25,15 +25,6 @@ SEED = Path("cmd/jamshidix/assets/directory.seed.json")
 MAX_CANDIDATES = 1500
 MAX_OUTPUT = 250
 TIMEOUT = 10
-FALLBACK_LINKS = [
-    "vless://3b002dc2-fd76-4eca-b6cd-7459ecca765e@xray2-direct-mci1-fs-ce.freesocks.work:443?security=reality&encryption=none&pbk=7j3hmlHrEDk3Kjx-dFG3E3jf0c6PZF45trIPFsuKWmI&headerType=none&fp=chrome&type=tcp&flow=xtls-rprx-vision&sni=dl.google.com&sid=1",
-    "vless://3c092bd5-f723-4a64-b576-9fb0fd9d3543@2.27.54.106:50098?type=tcp&security=reality&flow=xtls-rprx-vision&fp=firefox&pbk=0_FWbcTe6tvBuSZ7_7PrMaNmg44a8VxYRXPKjZuERwQ&sid=a150dff4&sni=eh.vk.com",
-    "vless://d56716f5-a22a-463b-89ad-4f65a54d994a@65.109.217.192:48349?security=reality&encryption=none&pbk=bdtDRp63jl4nMZRPN2wNlKJ6Yt77SF1uSrfkQ8NBKks&headerType=none&fp=chrome&type=tcp&flow=xtls-rprx-vision&sni=amp-api-edge.apps.apple.com&sid=c679641e0190177b",
-    "vless://d5e5f5a1-0f23-4c49-af9f-4be445bf9d8e@82.118.16.189:443?encryption=none&flow=xtls-rprx-vision&fp=chrome&pbk=SjGkzJQ9I6ZZjC3V73atcPMczhMm0oiTrB8mUQXz1HY&security=reality&sid=37fbf155c7a9f3ff&sni=www.cloudflare.com&type=tcp",
-    "vless://ff6e1028-b337-4062-a4db-86c784a9cdb4@nl1.nevcore.ru:8443?security=reality&encryption=none&headerType=none&fp=firefox&type=tcp&flow=xtls-rprx-vision&sni=www.amazon.com&sid=83a1c3d1295348be&pbk=8d--Q-ukEleKlt5yMPF50BK_76VhZ9jiBvZzGONX0yw",
-    "vless://d00d9d18-20cf-4191-be76-6f73d43a27ec@178.79.149.80:22117?security=reality&type=tcp&sni=www.cloudflare.com&fp=chrome&flow=xtls-rprx-vision&sid=c7994be0&pbk=Vqwhml0SG253PsBtx9xi3GJY-hhyA6sgGUJ_wVI7Q1g&encryption=none",
-    "vless://4bdeee92-97e8-414d-bef6-ec1d5e2ab73b@164.37.100.195:443?flow=xtls-rprx-vision&encryption=none&security=reality&sni=tomaz1337shellbuy.vvzzkontaktezzvv.garden&pbk=s0ypPx0AL3k2KOk74tbm-aE-i7eIR_MYVzfLHZeLaUk&sid=2e124af254a65e7c&type=tcp&headerType=none",
-]
 
 UUID_RE = re.compile(r"^[0-9a-fA-F-]{36}$")
 PBK_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
@@ -134,10 +125,6 @@ def tcp_probe(node):
 
 def main():
     raw_blobs = []
-    for link in FALLBACK_LINKS:
-        node = parse_vless(link, "seed-fallback")
-        if node:
-            raw_blobs.append(("seed-fallback", link))
     for name, url in SOURCES:
         try:
             raw_blobs.append((name, get_text(url)))
