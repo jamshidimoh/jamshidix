@@ -23,3 +23,11 @@ __pycache__/
 
 # Logs
 *.log
+
+# Jamshidix build/runtime artifacts
+dist/
+*.exe
+cmd/jamshidix/assets/*.zip
+link.txt
+vless.txt
+client.json

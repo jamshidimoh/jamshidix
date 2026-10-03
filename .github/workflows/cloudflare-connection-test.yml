@@ -7,10 +7,11 @@ permissions:
   contents: read
 
 jobs:
-  guidance:
+  verify-token:
     runs-on: ubuntu-latest
     steps:
-      - name: Show next step
-        run: |
-          echo "Cloudflare API connectivity was previously verified successfully."
-          echo "Run the local script scripts/cloudflare_connection_test.sh when a fresh credential check is required."
+      - uses: actions/checkout@v4
+      - name: Verify scoped API token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: bash ./scripts/cloudflare_connection_test.sh

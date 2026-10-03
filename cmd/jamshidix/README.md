@@ -2,31 +2,35 @@
 
 ## اجرای یک‌کلیکی
 
-بعد از آماده بودن `client.json`، فقط روی `Jamshidix.exe` دوبارکلیک کنید.
+1. لینک `vless://...` را کپی کنید.
+2. روی `Jamshidix.exe` دوبارکلیک کنید.
 
-EXE به‌صورت خودکار:
-- در صورت نیاز درخواست Administrator می‌دهد.
-- sing-box 1.14.1 را نصب/بررسی می‌کند.
-- `client.json` کنار EXE یا در `%ProgramData%\\Jamshidix\\client.json` را پیدا می‌کند.
-- کانفیگ را با parser واقعی sing-box اعتبارسنجی می‌کند.
-- TUN را در پس‌زمینه اجرا می‌کند.
+ترتیب منبع کانفیگ:
+1. لینک جدید در کلیپ‌بورد (اگر با لینک ذخیره‌شده فرق داشته باشد)
+2. `%ProgramData%\Jamshidix\client.json` موجود
+3. `link.txt` / `vless.txt` / `client.json` کنار EXE
 
-برای اجرای اول، می‌توانید `client.json` واقعی را کنار EXE قرار دهید. اگر فایل وجود نداشته باشد، EXE یک `client.config.template.json` در پوشهٔ داده می‌سازد و پوشه را باز می‌کند.
+کلیک دوم وقتی تونل فعال است، پیشنهاد قطع اتصال می‌دهد.
 
-## فرمان‌های عیب‌یابی
+## نسخه‌ها
 
-```powershell
-.\Jamshidix.exe status
-.\Jamshidix.exe stop
-.\Jamshidix.exe version
+- `Jamshidix.exe` (release): sing-box داخل فایل است، بدون دانلود.
+- `Jamshidix-lite.exe` (CI): بدون sing-box؛ در اولین اجرا از GitHub می‌گیرد و SHA-256 را چک می‌کند.
+
+## دستورها
+
+```
+Jamshidix.exe status | stop | version | check | run | install
+Jamshidix.exe import <vless://...> | --clipboard | --file <path>
+Jamshidix.exe config --server-ip IP --uuid UUID --public-key KEY --short-id ID --handshake-host HOST [--port 443]
+Jamshidix.exe autostart on|off
+Jamshidix.exe uninstall
 ```
 
-فرمان‌های قدیمی `install`، `config`، `check` و `run` نیز برای مدیریت دستی باقی مانده‌اند.
+## توسعه
 
-## Kill-switch و autostart
-
-این دو قابلیت هنوز اسکریپت‌های PowerShell موجود در `client/windows/` هستند و در مسیر یک‌کلیکی پایه ادغام نشده‌اند.
-
-## معماری
+- منطق parse/render لینک پلتفرم‌مستقل است و در `link_test.go` تست می‌شود.
+- `SINGBOX_BIN=/path/sing-box go test ./cmd/jamshidix` کانفیگ تولیدشده را با parser واقعی چک می‌کند.
+- دو نسخه از template کلاینت وجود دارد (`config/` و `assets/`)؛ تست `TestTemplateCopiesInSync` یکسان بودنشان را تضمین می‌کند.
 
 `Jamshidix.exe → sing-box.exe → TUN → VLESS/REALITY → gateway`

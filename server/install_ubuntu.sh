@@ -7,7 +7,7 @@ SING_BOX_VERSION="1.14.1"
 SING_BOX_BASE="https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}"
 
 sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates jq openssl tar iptables
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates jq openssl tar iptables iptables-persistent netfilter-persistent
 
 ARCH="$(dpkg --print-architecture)"
 case "$ARCH" in
@@ -50,17 +50,12 @@ sudo mkdir -p /etc/sing-box /var/lib/sing-box
 sudo touch /etc/sing-box/server.json
 sudo chmod 600 /etc/sing-box/server.json
 
-cat <<SYS | sudo tee /etc/sysctl.d/99-jamshidix.conf >/dev/null
-net.ipv4.ip_forward=1
-net.ipv6.conf.all.forwarding=0
-SYS
-sudo sysctl --system >/dev/null
-
-WAN_IF="$(ip route show default | awk 'NR==1{print $5}')"
-[[ -n "$WAN_IF" ]] || { echo "Could not detect WAN interface" >&2; exit 1; }
-
-sudo iptables -t nat -C POSTROUTING -o "$WAN_IF" -j MASQUERADE 2>/dev/null || \
-  sudo iptables -t nat -A POSTROUTING -o "$WAN_IF" -j MASQUERADE
+# Oracle's Ubuntu images ship an iptables policy that only accepts SSH, so the
+# provider-level rule alone is not enough: open TCP/443 here too and persist it.
+# (sing-box terminates the proxy in user space; no IP forwarding or NAT is needed.)
+sudo iptables -C INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || \
+  sudo iptables -I INPUT 1 -p tcp --dport 443 -j ACCEPT
+sudo netfilter-persistent save >/dev/null
 
 sudo tee /etc/systemd/system/sing-box.service >/dev/null <<SERVICE
 [Unit]
@@ -78,8 +73,8 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/sing-box
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target

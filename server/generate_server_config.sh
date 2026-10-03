@@ -8,6 +8,12 @@ SB="/usr/local/bin/sing-box"
 [[ -x "$SB" ]] || { echo "sing-box is not installed: $SB" >&2; exit 1; }
 sudo mkdir -p "$CONF_DIR"
 
+# Regenerating keys invalidates every existing client link, so require intent.
+if [[ -s "$CONF" && "${FORCE:-0}" != "1" ]]; then
+  echo "$CONF already exists. Re-run with FORCE=1 to replace it (existing client links stop working)." >&2
+  exit 1
+fi
+
 read -r -p "REALITY handshake host (hostname only): " HANDSHAKE_HOST
 
 if [[ ! "$HANDSHAKE_HOST" =~ ^[A-Za-z0-9.-]+$ || "$HANDSHAKE_HOST" == .* || "$HANDSHAKE_HOST" == *. || "$HANDSHAKE_HOST" != *.* ]]; then
@@ -64,6 +70,21 @@ JSON
 sudo chmod 600 "$CONF"
 sudo "$SB" check -c "$CONF"
 
+PUBLIC_IP="${PUBLIC_IP:-}"
+if [[ -z "$PUBLIC_IP" ]]; then
+  for url in https://api.ipify.org https://ifconfig.me/ip https://icanhazip.com; do
+    candidate="$(curl -4 -fsS --max-time 8 "$url" 2>/dev/null | tr -d '[:space:]' || true)"
+    if [[ "$candidate" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+      PUBLIC_IP="$candidate"
+      break
+    fi
+  done
+fi
+LINK_HOST="${PUBLIC_IP:-REPLACE_WITH_SERVER_IP}"
+LINK="vless://${UUID}@${LINK_HOST}:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${HANDSHAKE_HOST}&fp=chrome&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=tcp#Jamshidix"
+printf '%s\n' "$LINK" | sudo tee "$CONF_DIR/client-link.txt" >/dev/null
+sudo chmod 600 "$CONF_DIR/client-link.txt"
+
 cat <<OUT
 
 SERVER CONFIG READY
@@ -73,7 +94,13 @@ SHORT_ID=$SHORT_ID
 HANDSHAKE_HOST=$HANDSHAKE_HOST
 
 Private key was written only to $CONF.
-Do not commit $CONF to Git.
+Do not commit $CONF or the link below to Git.
+
+CLIENT LINK (copy this whole line, then double-click Jamshidix.exe on Windows):
+
+$LINK
+
+Saved (root only) in $CONF_DIR/client-link.txt
 
 Next:
   sudo systemctl enable --now sing-box

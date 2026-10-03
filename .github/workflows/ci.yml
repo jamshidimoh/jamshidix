@@ -18,6 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+
       - name: Validate JSON syntax
         shell: bash
         run: |
@@ -25,30 +30,20 @@ jobs:
           import json
           from pathlib import Path
 
-          for path in Path("config").rglob("*.json"):
+          for path in list(Path("config").rglob("*.json")) + list(Path("cmd").rglob("*.json")):
               json.loads(path.read_text(encoding="utf-8"))
               print("JSON OK:", path)
           PY
 
-      - name: Shell syntax
-        shell: bash
-        run: |
-          bash -n server/install_ubuntu.sh
-          bash -n server/generate_server_config.sh
-          bash -n scripts/generate_ids.sh
-          bash -n scripts/secret_audit.sh
-          bash -n scripts/validate_singbox.sh
-
-      - name: ShellCheck
+      - name: Shell syntax and ShellCheck
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
-          shellcheck server/install_ubuntu.sh
-          shellcheck server/generate_server_config.sh
-          shellcheck scripts/generate_ids.sh
-          shellcheck scripts/secret_audit.sh
-          shellcheck scripts/validate_singbox.sh
+          for f in server/*.sh scripts/*.sh; do
+            bash -n "$f"
+            shellcheck "$f"
+          done
 
       - name: PowerShell parse
         shell: pwsh
@@ -73,52 +68,33 @@ jobs:
         shell: bash
         run: bash ./scripts/secret_audit.sh
 
-      - name: sing-box parser validation
+      - name: Go format, vet (Linux + Windows) and unit tests
+        shell: bash
+        run: |
+          test -z "$(gofmt -l cmd/jamshidix)"
+          go vet ./...
+          GOOS=windows GOARCH=amd64 go vet ./...
+          go test ./... -count=1
+
+      - name: sing-box parser validation (templates + rendered client config)
         shell: bash
         run: bash ./scripts/validate_singbox.sh
+
+      - name: Build Windows executable (download-on-first-run variant)
+        shell: bash
+        run: |
+          mkdir -p dist
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -H=windowsgui" -o dist/Jamshidix-lite.exe ./cmd/jamshidix
+          file dist/Jamshidix-lite.exe
+          sha256sum dist/Jamshidix-lite.exe
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.23.x"
-
-      - name: Go format check
+      - name: Terraform format and validation
         shell: bash
         run: |
-          test -z "$(gofmt -l cmd/jamshidix)"
-
-      - name: Go test and vet
-        shell: bash
-        run: |
-          go test ./...
-          go vet ./...
-
-      - name: Build Windows executable
-        shell: bash
-        run: |
-          mkdir -p dist
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -H=windowsgui" -o dist/Jamshidix.exe ./cmd/jamshidix
-          file dist/Jamshidix.exe
-          sha256sum dist/Jamshidix.exe
-
-      - name: Upload Windows one-click executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: Jamshidix-Windows-x64-OneClick
-          path: dist/Jamshidix.exe
-          if-no-files-found: error
-
-      - name: Terraform format
-        shell: bash
-        run: terraform fmt -check -recursive infra/oci
-
-      - name: Terraform validation
-        shell: bash
-        working-directory: infra/oci
-        run: |
+          terraform fmt -check -recursive infra/oci
+          cd infra/oci
           terraform init -backend=false -input=false
           terraform validate

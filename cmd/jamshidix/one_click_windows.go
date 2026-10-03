@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,85 +16,196 @@ import (
 )
 
 const (
-	messageBoxInformation = 0x00000040
-	messageBoxWarning     = 0x00000030
-	messageBoxError       = 0x00000010
-	createNoWindow        = 0x08000000
+	mbOK          = 0x00000000
+	mbYesNo       = 0x00000004
+	mbError       = 0x00000010
+	mbQuestion    = 0x00000020
+	mbWarning     = 0x00000030
+	mbInfo        = 0x00000040
+	idYes         = 6
+	createNoWin   = 0x08000000
+	detachedProc  = 0x00000008
+	newProcGroup  = 0x00000200
+	attachParent  = ^uintptr(0) // ATTACH_PARENT_PROCESS (-1)
+	probeURL      = "http://connectivitycheck.gstatic.com/generate_204"
+	startupWaitMs = 3000
 )
 
 var (
-	user32              = syscall.NewLazyDLL("user32.dll")
-	messageBoxW         = user32.NewProc("MessageBoxW")
-	errOneClickRelaunch = errors.New("elevated instance launched")
+	user32        = syscall.NewLazyDLL("user32.dll")
+	shell32       = syscall.NewLazyDLL("shell32.dll")
+	kernel32      = syscall.NewLazyDLL("kernel32.dll")
+	messageBoxW   = user32.NewProc("MessageBoxW")
+	shellExecuteW = shell32.NewProc("ShellExecuteW")
+	isUserAnAdmin = shell32.NewProc("IsUserAnAdmin")
+	attachConsole = kernel32.NewProc("AttachConsole")
 )
 
-func runOneClick() error {
-	if err := ensureElevated(); err != nil {
-		if errors.Is(err, errOneClickRelaunch) {
-			return nil
+func msg(body string, flags uintptr) int {
+	t, _ := syscall.UTF16PtrFromString("Jamshidix")
+	b, _ := syscall.UTF16PtrFromString(body)
+	r, _, _ := messageBoxW.Call(0, uintptr(unsafe.Pointer(b)), uintptr(unsafe.Pointer(t)), flags)
+	return int(r)
+}
+
+// attachParentConsole lets CLI subcommands print when the EXE (built with
+// -H=windowsgui) is started from cmd.exe or PowerShell.
+func attachParentConsole() {
+	if r, _, _ := attachConsole.Call(attachParent); r == 0 {
+		return
+	}
+	if _, err := os.Stdout.Stat(); err != nil {
+		if f, err := os.OpenFile("CONOUT$", os.O_WRONLY, 0); err == nil {
+			os.Stdout = f
 		}
-		showMessage("Jamshidix", "اجرای Jamshidix با دسترسی Administrator شروع نشد.\n\n"+err.Error(), messageBoxError)
+	}
+	if _, err := os.Stderr.Stat(); err != nil {
+		if f, err := os.OpenFile("CONOUT$", os.O_WRONLY, 0); err == nil {
+			os.Stderr = f
+		}
+	}
+}
+
+func isAdmin() bool {
+	r, _, _ := isUserAnAdmin.Call()
+	return r != 0
+}
+
+// relaunchElevated re-runs this EXE through the UAC consent prompt.
+func relaunchElevated() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	verb, _ := syscall.UTF16PtrFromString("runas")
+	file, _ := syscall.UTF16PtrFromString(exe)
+	dir, _ := syscall.UTF16PtrFromString(filepath.Dir(exe))
+	r, _, callErr := shellExecuteW.Call(0, uintptr(unsafe.Pointer(verb)), uintptr(unsafe.Pointer(file)), 0, uintptr(unsafe.Pointer(dir)), 1)
+	if r <= 32 {
+		return fmt.Errorf("UAC elevation was cancelled or failed (code %d): %v", r, callErr)
+	}
+	return nil
+}
+
+func runOneClick() error {
+	if !isAdmin() {
+		if err := relaunchElevated(); err != nil {
+			msg("برای ساخت تونل، Jamshidix باید با دسترسی Administrator اجرا شود.\n\n"+err.Error(), mbError)
+		}
 		return nil
 	}
 
 	if isSingBoxRunning() {
-		showMessage("Jamshidix", "تونل Jamshidix در حال اجراست.", messageBoxInformation)
+		if msg("تونل Jamshidix در حال اجراست.\n\nبرای قطع اتصال «Yes» را بزنید.", mbYesNo|mbQuestion) == idYes {
+			if err := stopSingBox(); err != nil {
+				msg("قطع تونل انجام نشد.\n\n"+err.Error(), mbError)
+			} else {
+				msg("تونل قطع شد.", mbInfo)
+			}
+		}
 		return nil
 	}
 
 	if !existingSingBoxIsExpected() {
 		if err := installSingBox(); err != nil {
-			showMessage("Jamshidix", "نصب sing-box انجام نشد.\n\n"+err.Error(), messageBoxError)
+			msg("نصب sing-box انجام نشد.\n\n"+err.Error(), mbError)
 			return nil
 		}
 	}
 
-	if err := ensureClientConfig(); err != nil {
-		showMessage("Jamshidix", err.Error(), messageBoxWarning)
+	imported, err := ensureClientConfig()
+	if err != nil {
+		msg(err.Error(), mbWarning)
 		return nil
 	}
-	if err := checkConfig(); err != nil {
-		showMessage("Jamshidix", "کانفیگ معتبر نیست.\n\n"+err.Error(), messageBoxError)
+	if err := checkConfigQuiet(); err != nil {
+		msg("کانفیگ معتبر نیست.\n\n"+err.Error(), mbError)
+		return nil
+	}
+	if err := startDetached(); err != nil {
+		msg("اجرای تونل شروع نشد.\n\n"+err.Error(), mbError)
+		return nil
+	}
+	time.Sleep(startupWaitMs * time.Millisecond)
+	if !isSingBoxRunning() {
+		msg("sing-box بلافاصله متوقف شد.\n\n"+tailLog(700)+"\n\nلاگ کامل: "+logPath(), mbError)
 		return nil
 	}
 
-	path := filepath.Join(dataDir, "client.json")
-	if err := startDetached(singBoxPath(), "run", "-c", path); err != nil {
-		showMessage("Jamshidix", "اجرای تونل شروع نشد.\n\n"+err.Error(), messageBoxError)
-		return nil
+	note := ""
+	if imported {
+		note = "\n\nلینک سرور از کلیپ‌بورد/فایل وارد شد."
 	}
-	if waitForProcess(3) {
-		showMessage("Jamshidix", "تونل با موفقیت شروع شد.\n\nTUN: JamshidixTunnel\nProxy: 127.0.0.1:2080", messageBoxInformation)
-		return nil
+	if probeInternet() {
+		msg("متصل شد و اینترنت از مسیر تونل پاسخ می‌دهد.\n\nبرای قطع اتصال، دوباره روی Jamshidix.exe کلیک کنید."+note, mbInfo)
+	} else {
+		msg("تونل اجرا شد، اما از طریق سرور اینترنتی پاسخ نگرفتیم.\n\nاحتمالاً سرور خاموش/مسدود است یا کانفیگ اشتباه است.\nبرای قطع تونل دوباره روی Jamshidix.exe کلیک کنید.\n\nلاگ: "+logPath()+note, mbWarning)
 	}
-	showMessage("Jamshidix", "sing-box شروع نشد یا بلافاصله متوقف شد.\n\nبرای بررسی، Jamshidix.exe status را از CMD اجرا کنید.", messageBoxError)
 	return nil
 }
 
-func showMessage(title, body string, flags uintptr) {
-	t, _ := syscall.UTF16PtrFromString(title)
-	b, _ := syscall.UTF16PtrFromString(body)
-	_, _, _ = messageBoxW.Call(0, uintptr(unsafe.Pointer(b)), uintptr(unsafe.Pointer(t)), flags)
+func checkConfigQuiet() error {
+	cmd := exec.Command(singBoxPath(), "check", "-c", configPath())
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWin}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
-func startDetached(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	cmd.Stdin = nil
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWindow}
+// startDetached launches sing-box hidden; output goes to jamshidix.log.
+func startDetached() error {
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		return err
+	}
+	logf, err := os.Create(logPath())
+	if err != nil {
+		return err
+	}
+	defer logf.Close()
+	cmd := exec.Command(singBoxPath(), "run", "-c", configPath())
+	cmd.Dir = dataDir
+	cmd.Stdout, cmd.Stderr = logf, logf
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWin | detachedProc | newProcGroup}
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 	return cmd.Process.Release()
 }
 
-func isSingBoxRunning() bool {
-	out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq sing-box.exe", "/FO", "CSV", "/NH").CombinedOutput()
-	if err != nil {
-		return false
+func tailLog(n int) string {
+	b, err := os.ReadFile(logPath())
+	if err != nil || len(b) == 0 {
+		return "(بدون خروجی)"
 	}
-	return strings.Contains(strings.ToLower(string(out)), `"sing-box.exe"`)
+	if len(b) > n {
+		b = b[len(b)-n:]
+	}
+	return strings.TrimSpace(string(b))
+}
+
+// probeInternet checks that traffic really flows through the tunnel.
+func probeInternet() bool {
+	client := &http.Client{Timeout: 7 * time.Second}
+	for i := 0; i < 3; i++ {
+		resp, err := client.Get(probeURL)
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK {
+				return true
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return false
+}
+
+func isSingBoxRunning() bool {
+	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq sing-box.exe", "/FO", "CSV", "/NH")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWin}
+	out, err := cmd.CombinedOutput()
+	return err == nil && strings.Contains(strings.ToLower(string(out)), `"sing-box.exe"`)
 }
 
 func stopSingBox() error {
@@ -101,12 +213,11 @@ func stopSingBox() error {
 		return nil
 	}
 	cmd := exec.Command("taskkill", "/IM", "sing-box.exe", "/F", "/T")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWindow}
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWin}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		msg := strings.TrimSpace(string(out))
-		if msg != "" {
-			return errors.New(msg)
+		if m := strings.TrimSpace(string(out)); m != "" {
+			return errors.New(m)
 		}
 		return err
 	}
@@ -117,70 +228,108 @@ func existingSingBoxIsExpected() bool {
 	if _, err := os.Stat(singBoxPath()); err != nil {
 		return false
 	}
-	out, err := exec.Command(singBoxPath(), "version").CombinedOutput()
+	cmd := exec.Command(singBoxPath(), "version")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWin}
+	out, err := cmd.CombinedOutput()
 	return err == nil && strings.Contains(string(out), singBoxVersion)
 }
 
-func ensureClientConfig() error {
-	path := filepath.Join(dataDir, "client.json")
-	if _, err := os.Stat(path); err == nil {
-		return nil
+func readClipboard() (string, error) {
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command",
+		"[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Clipboard -Raw")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWin}
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("cannot read clipboard: %w", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return err
-	}
+	return string(out), nil
+}
 
-	if exe, err := os.Executable(); err == nil {
-		candidate := filepath.Join(filepath.Dir(exe), "client.json")
-		if _, statErr := os.Stat(candidate); statErr == nil {
-			if err := copyFile(candidate, path); err != nil {
-				return err
+func readLinkFile(path string) (Profile, string, bool) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return Profile{}, "", false
+	}
+	link := findLink(string(b))
+	if link == "" {
+		return Profile{}, "", false
+	}
+	p, err := parseVLESSLink(link)
+	return p, link, err == nil
+}
+
+func storedLinkPath() string { return filepath.Join(dataDir, "link.txt") }
+
+// ensureClientConfig picks the config source, in this order:
+//  1. a new vless:// link on the clipboard (different from the stored one),
+//  2. the existing %ProgramData%\Jamshidix\client.json,
+//  3. link.txt / vless.txt / client.json next to the EXE.
+//
+// The bool reports whether a link was imported on this run.
+func ensureClientConfig() (bool, error) {
+	if text, err := readClipboard(); err == nil {
+		if link := findLink(text); link != "" {
+			stored, _ := os.ReadFile(storedLinkPath())
+			if strings.TrimSpace(string(stored)) != link {
+				if p, err := parseVLESSLink(link); err == nil {
+					if err := saveProfile(p); err != nil {
+						return false, err
+					}
+					_ = os.WriteFile(storedLinkPath(), []byte(link), 0o600)
+					return true, nil
+				}
 			}
-			return nil
 		}
 	}
-
-	templatePath := filepath.Join(dataDir, "client.config.template.json")
-	if err := os.WriteFile(templatePath, clientTemplate, 0600); err != nil {
-		return err
+	if _, err := os.Stat(configPath()); err == nil {
+		return false, nil
 	}
-	openConfigFolder()
-	return fmt.Errorf("اولین اجرا نیاز به client.json دارد.\n\nفایل نمونه در این مسیر ساخته شد:\n%s\n\nکانفیگ واقعی را با همین نام کنار Jamshidix.exe قرار دهید؛ سپس فقط با دوبارکلیک Jamshidix.exe اجرا کنید.", templatePath)
-}
-
-func ensureElevated() error {
-	if os.Getenv("JAMSHIDIX_ELEVATED") == "1" {
-		return nil
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	exe, err = filepath.Abs(exe)
-	if err != nil {
-		return err
-	}
-	quoted := strings.ReplaceAll(exe, "'", "''")
-	ps := fmt.Sprintf("$p='%s'; Start-Process -FilePath $p -ArgumentList '--one-click-elevated' -Verb RunAs -WindowStyle Hidden", quoted)
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", ps)
-	cmd.Env = append(os.Environ(), "JAMSHIDIX_ELEVATED=1")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("administrator elevation failed: %w: %s", err, strings.TrimSpace(string(out)))
-	}
-	return errOneClickRelaunch
-}
-
-func openConfigFolder() {
-	_ = exec.Command("explorer.exe", dataDir).Start()
-}
-
-func waitForProcess(seconds int) bool {
-	deadline := time.Now().Add(time.Duration(seconds) * time.Second)
-	for time.Now().Before(deadline) {
-		if isSingBoxRunning() {
-			return true
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		for _, name := range []string{"link.txt", "vless.txt"} {
+			if p, link, ok := readLinkFile(filepath.Join(dir, name)); ok {
+				if err := saveProfile(p); err != nil {
+					return false, err
+				}
+				_ = os.WriteFile(storedLinkPath(), []byte(link), 0o600)
+				return true, nil
+			}
 		}
-		time.Sleep(250 * time.Millisecond)
+		if cand := filepath.Join(dir, "client.json"); fileExists(cand) {
+			if err := os.MkdirAll(dataDir, 0o755); err != nil {
+				return false, err
+			}
+			b, err := os.ReadFile(cand)
+			if err != nil {
+				return false, err
+			}
+			return true, os.WriteFile(configPath(), b, 0o600)
+		}
 	}
-	return false
+	return false, errors.New("هنوز سروری تنظیم نشده است.\n\n۱) لینک vless:// سرور را کپی کنید\n۲) دوباره روی Jamshidix.exe کلیک کنید\n\n(یا لینک را در فایل link.txt کنار EXE بگذارید.)")
+}
+
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+func setAutostart(on bool) error {
+	var cmd *exec.Cmd
+	if on {
+		if !fileExists(configPath()) {
+			return fmt.Errorf("client config not found: %s (run Jamshidix.exe once first)", configPath())
+		}
+		tr := fmt.Sprintf(`"%s" run -c "%s"`, singBoxPath(), configPath())
+		cmd = exec.Command("schtasks", "/Create", "/TN", "Jamshidix", "/TR", tr, "/SC", "ONSTART", "/RU", "SYSTEM", "/RL", "HIGHEST", "/F")
+	} else {
+		cmd = exec.Command("schtasks", "/Delete", "/TN", "Jamshidix", "/F")
+	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWin}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("schtasks failed (run as Administrator): %s", strings.TrimSpace(string(out)))
+	}
+	fmt.Println("Autostart:", map[bool]string{true: "enabled", false: "disabled"}[on])
+	return nil
 }

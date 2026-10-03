@@ -2,7 +2,7 @@
 
 ## وضعیت
 
-اتصال GitHub Actions به Cloudflare با Secretهای `CLOUDFLARE_EMAIL` و `CLOUDFLARE_API_KEY` با موفقیت آزمایش شده است. تست، endpoint کاربر و دسترسی Zone API را بررسی می‌کند.
+تست دستی `cloudflare-connection-test` فقط اعتبار یک **API Token محدود** (`CLOUDFLARE_API_TOKEN`) را از طریق `user/tokens/verify` بررسی می‌کند. اگر قبلاً Global API Key را در Secrets گذاشته‌اید، آن را revoke/rotate کنید و فقط توکن با حداقل دسترسی بسازید.
 
 ## معماری فعلی Jamshidix
 

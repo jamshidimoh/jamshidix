@@ -1,5 +1,7 @@
 name: Build Windows executable
 
+# Produces ONE self-contained Jamshidix.exe (official sing-box embedded,
+# SHA-256 pinned). Push a tag like v0.2.0 to publish it as a GitHub Release.
 on:
   workflow_dispatch:
   push:
@@ -7,11 +9,11 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write # only used by the release step on tags
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -20,21 +22,51 @@ jobs:
         with:
           go-version: "1.23.x"
 
-      - name: Test
+      - name: Tag must match VERSION
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
         run: |
-          go test ./...
-          go vet ./...
+          test "v$(tr -d '[:space:]' < VERSION)" = "${GITHUB_REF_NAME}" || { echo "Tag ${GITHUB_REF_NAME} != VERSION file" >&2; exit 1; }
 
-      - name: Build
-        shell: pwsh
+      - name: Test
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          go build -trimpath -ldflags="-s -w -H=windowsgui" -o dist/Jamshidix.exe ./cmd/jamshidix
-          Get-FileHash dist/Jamshidix.exe -Algorithm SHA256
+          go vet ./...
+          go test ./... -count=1
+
+      - name: Fetch pinned official sing-box archive
+        shell: bash
+        run: |
+          VER="$(grep -oP 'singBoxVersion\s*=\s*"\K[^"]+' cmd/jamshidix/singbox.go)"
+          SHA="$(grep -oP 'singBoxSHA256\s*=\s*"\K[0-9a-f]{64}' cmd/jamshidix/singbox.go)"
+          curl --fail --silent --show-error --location \
+            "https://github.com/SagerNet/sing-box/releases/download/v${VER}/sing-box-${VER}-windows-amd64.zip" \
+            -o cmd/jamshidix/assets/sing-box-windows-amd64.zip
+          echo "${SHA}  cmd/jamshidix/assets/sing-box-windows-amd64.zip" | sha256sum --check
+
+      - name: Build self-contained executable
+        shell: bash
+        run: |
+          mkdir -p dist
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go vet -tags embedsb ./...
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -tags embedsb -trimpath \
+            -ldflags="-s -w -H=windowsgui" -o dist/Jamshidix.exe ./cmd/jamshidix
+          (cd dist && sha256sum Jamshidix.exe | tee Jamshidix.exe.sha256)
 
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
           name: Jamshidix-Windows-x64
-          path: dist/Jamshidix.exe
+          path: |
+            dist/Jamshidix.exe
+            dist/Jamshidix.exe.sha256
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/Jamshidix.exe dist/Jamshidix.exe.sha256 \
+            --title "Jamshidix ${GITHUB_REF_NAME}" --generate-notes

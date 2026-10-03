@@ -2,7 +2,7 @@ param(
   [Parameter(Mandatory=$true)][string]$ServerIp,
   [Parameter(Mandatory=$true)][string]$Uuid,
   [Parameter(Mandatory=$true)][string]$RealityPublicKey,
-  [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-fA-F]{1,8}$')][string]$ShortId,
+  [Parameter(Mandatory=$true)][ValidatePattern('^([0-9a-fA-F]{2}){1,8}$')][string]$ShortId,
   [Parameter(Mandatory=$true)][ValidatePattern('^[A-Za-z0-9.-]+$')][string]$HandshakeHost,
   [string]$Template = "$PSScriptRoot\..\..\config\client.config.template.json",
   [string]$Output = "$env:ProgramData\Jamshidix\client.json"

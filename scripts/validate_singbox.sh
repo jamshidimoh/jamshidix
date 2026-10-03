@@ -57,4 +57,8 @@ PY
 "$SB" check -c "$CHECK_DIR/server.json"
 "$SB" check -c "$CHECK_DIR/client.json"
 
+if command -v go >/dev/null 2>&1; then
+  SINGBOX_BIN="$SB" go test ./cmd/jamshidix -run 'SingBox|Template' -count=1
+fi
+
 echo "sing-box ${VERSION} schema validation passed."

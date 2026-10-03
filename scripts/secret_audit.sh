@@ -8,11 +8,12 @@ patterns=(
   'xox[baprs]-'
   'AKIA[0-9A-Z]{16}'
   'cfk_[A-Za-z0-9_-]{20,}'
+  'vless://[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}@'
 )
 
 found=0
 for pattern in "${patterns[@]}"; do
-  matches="$(git grep -nEI "$pattern" -- . ':!.git' || true)"
+  matches="$(git grep -nEI "$pattern" -- . ':!.git' ':!cmd/jamshidix/link_test.go' || true)"
   if [[ -n "$matches" ]]; then
     printf '%s\n' "$matches"
     found=1
