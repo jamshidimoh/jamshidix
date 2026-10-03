@@ -171,6 +171,60 @@ def tcp_probe(node):
         return None
 
 
+def recompute_priority(node):
+    base = SOURCE_PRIORITY.get(node.get("source", ""), 50)
+    score = base
+    if node.get("remote_ok"):
+        score += 12
+    latency = node.get("remote_latency_ms", 0) or 0
+    if latency > 0:
+        score += max(0, 18 - latency // 20)
+    if node.get("region"):
+        score += 3
+    node["priority"] = min(98, score)
+    return node
+
+
+def geolocate_batch(nodes):
+    ip_nodes = {}
+    for node in nodes:
+        host = node.get("server", "")
+        try:
+            socket.inet_aton(host)
+        except OSError:
+            continue
+        ip_nodes.setdefault(host, []).append(node)
+
+    unique_ips = list(ip_nodes)
+    for start in range(0, len(unique_ips), 100):
+        batch = unique_ips[start:start + 100]
+        try:
+            payload = json.dumps(batch).encode("utf-8")
+            req = urllib.request.Request(
+                "http://ip-api.com/batch?fields=status,query,countryCode,country,city",
+                data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "JamshidixCollector/0.3",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                results = json.loads(resp.read(1_000_000).decode("utf-8", "replace"))
+            for item in results:
+                if item.get("status") != "success":
+                    continue
+                host = item.get("query", "")
+                for node in ip_nodes.get(host, []):
+                    node["region"] = item.get("countryCode", "") or node.get("region", "")
+                    node["country"] = item.get("country", "") or node.get("country", "")
+                    node["city"] = item.get("city", "") or node.get("city", "")
+        except Exception as exc:
+            print(f"geo batch failed for {len(batch)} IPs: {exc}")
+
+    return nodes
+
+
 def main():
     raw_blobs = []
     for name, url in SOURCES:
@@ -200,7 +254,10 @@ def main():
     nodes = list(candidates.values())
     with concurrent.futures.ThreadPoolExecutor(max_workers=50) as pool:
         checked = [x for x in pool.map(tcp_probe, nodes) if x]
-    checked.sort(key=lambda x: (x["remote_latency_ms"], x["server"]))
+    geolocate_batch(checked)
+    for node in checked:
+        recompute_priority(node)
+    checked.sort(key=lambda x: (-x["priority"], x["remote_latency_ms"], x["server"]))
     checked = checked[:MAX_OUTPUT]
     if not checked:
         print("remote TCP probing returned no reachable nodes; publishing validated candidates for local preflight")
