@@ -72,6 +72,22 @@ func isAdmin() bool {
 }
 
 // relaunchElevated re-runs this EXE through the UAC consent prompt.
+func relaunchElevatedArgs(args []string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	verb, _ := syscall.UTF16PtrFromString("runas")
+	file, _ := syscall.UTF16PtrFromString(exe)
+	dir, _ := syscall.UTF16PtrFromString(filepath.Dir(exe))
+	argText, _ := syscall.UTF16PtrFromString(strings.Join(args, " "))
+	r, _, callErr := shellExecuteW.Call(0, uintptr(unsafe.Pointer(verb)), uintptr(unsafe.Pointer(file)), uintptr(unsafe.Pointer(argText)), uintptr(unsafe.Pointer(dir)), 1)
+	if r <= 32 {
+		return fmt.Errorf("UAC elevation was cancelled or failed (code %d): %v", r, callErr)
+	}
+	return nil
+}
+
 func relaunchElevated() error {
 	exe, err := os.Executable()
 	if err != nil {
