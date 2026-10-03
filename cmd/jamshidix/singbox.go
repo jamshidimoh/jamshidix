@@ -37,6 +37,7 @@ var (
 func singBoxPath() string { return filepath.Join(programDir, "sing-box.exe") }
 func configPath() string  { return filepath.Join(dataDir, "client.json") }
 func logPath() string     { return filepath.Join(dataDir, "jamshidix.log") }
+func pidPath() string     { return filepath.Join(dataDir, "sing-box.pid") }
 
 func sha256Hex(b []byte) string {
 	sum := sha256.Sum256(b)
