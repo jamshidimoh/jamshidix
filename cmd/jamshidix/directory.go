@@ -22,6 +22,8 @@ type Node struct {
 	Name             string `json:"name"`
 	Country          string `json:"country,omitempty"`
 	City             string `json:"city,omitempty"`
+	Region           string `json:"region,omitempty"`
+	Priority         int    `json:"priority"`
 	Source           string `json:"source"`
 	Server           string `json:"server"`
 	Port             int    `json:"port"`
@@ -169,6 +171,40 @@ func probeNode(n Node) (bool, int) {
 	}
 	_ = conn.Close()
 	return true, int(time.Since(start).Milliseconds())
+}
+
+func applyNodeView(d Directory, sortMode, region string) Directory {
+	filtered := make([]Node, 0, len(d.Nodes))
+	for _, n := range d.Nodes {
+		if region == "" || region == "همه مناطق" || strings.EqualFold(n.Region, region) || (n.Region == "" && region == "نامشخص") {
+			filtered = append(filtered, n)
+		}
+	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		a, b := filtered[i], filtered[j]
+		switch sortMode {
+		case "سرعت":
+			if a.LocalOK != b.LocalOK { return a.LocalOK }
+			if a.LocalOK && b.LocalOK && a.LocalLatencyMs != b.LocalLatencyMs { return a.LocalLatencyMs < b.LocalLatencyMs }
+			if a.RemoteOK != b.RemoteOK { return a.RemoteOK }
+			return a.Priority > b.Priority
+		case "منطقه":
+			ar, br := a.Region, b.Region
+			if ar == "" { ar = "نامشخص" }
+			if br == "" { br = "نامشخص" }
+			if ar != br { return ar < br }
+			return a.Priority > b.Priority
+		case "تازگی":
+			return a.FetchedAt > b.FetchedAt
+		default:
+			if a.LocalOK != b.LocalOK { return a.LocalOK }
+			if a.Priority != b.Priority { return a.Priority > b.Priority }
+			if a.RemoteLatencyMs != b.RemoteLatencyMs { return a.RemoteLatencyMs < b.RemoteLatencyMs }
+			return a.Name < b.Name
+		}
+	})
+	d.Nodes = filtered
+	return d
 }
 
 func decorateLocalReachability(d Directory) Directory {
