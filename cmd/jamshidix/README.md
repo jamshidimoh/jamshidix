@@ -1,32 +1,62 @@
-# Jamshidix.exe
+package main
 
-## اجرای یک‌کلیکی
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
 
-بعد از آماده بودن `client.json`، فقط روی `Jamshidix.exe` دوبارکلیک کنید.
+type ConfigEngine struct {
+	dataDir      string
+	templatePath string
+}
 
-EXE به‌صورت خودکار:
-- در صورت نیاز درخواست Administrator می‌دهد.
-- sing-box 1.14.1 را نصب/بررسی می‌کند.
-- `client.json` کنار EXE یا در `%ProgramData%\\Jamshidix\\client.json` را پیدا می‌کند.
-- کانفیگ را با parser واقعی sing-box اعتبارسنجی می‌کند.
-- TUN را در پس‌زمینه اجرا می‌کند.
+type ClientConfig struct {
+	Log       map[string]interface{} `json:"log"`
+	DNS       map[string]interface{} `json:"dns"`
+	Inbounds  []map[string]interface{} `json:"inbounds"`
+	Outbounds []map[string]interface{} `json:"outbounds"`
+	Route     map[string]interface{} `json:"route"`
+}
 
-برای اجرای اول، می‌توانید `client.json` واقعی را کنار EXE قرار دهید. اگر فایل وجود نداشته باشد، EXE یک `client.config.template.json` در پوشهٔ داده می‌سازد و پوشه را باز می‌کند.
+func NewConfigEngine(dataDir, templatePath string) *ConfigEngine {
+	return &ConfigEngine{dataDir: dataDir, templatePath: templatePath}
+}
 
-## فرمان‌های عیب‌یابی
+func (c *ConfigEngine) GenerateClientConfig(serverIP, uuid, publicKey, shortID, handshakeHost string) error {
+	templateBytes, err := os.ReadFile(c.templatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read template: %w", err)
+	}
+	cfg := string(templateBytes)
+	cfg = strings.ReplaceAll(cfg, "REPLACE_WITH_SERVER_IP", serverIP)
+	cfg = strings.ReplaceAll(cfg, "REPLACE_WITH_UUID", uuid)
+	cfg = strings.ReplaceAll(cfg, "REPLACE_WITH_REALITY_PUBLIC_KEY", publicKey)
+	cfg = strings.ReplaceAll(cfg, "REPLACE_WITH_SHORT_ID", shortID)
+	cfg = strings.ReplaceAll(cfg, "REPLACE_WITH_HANDSHAKE_HOST", handshakeHost)
 
-```powershell
-.\Jamshidix.exe status
-.\Jamshidix.exe stop
-.\Jamshidix.exe version
-```
+	var parsed interface{}
+	if err := json.Unmarshal([]byte(cfg), &parsed); err != nil {
+		return fmt.Errorf("invalid template JSON: %w", err)
+	}
+	path := filepath.Join(c.dataDir, "client.json")
+	if err := os.WriteFile(path, []byte(cfg), 0600); err != nil {
+		return fmt.Errorf("failed to write client config: %w", err)
+	}
+	return nil
+}
 
-فرمان‌های قدیمی `install`، `config`، `check` و `run` نیز برای مدیریت دستی باقی مانده‌اند.
+func (c *ConfigEngine) ValidateConfig(configPath string) error {
+	cfgBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to read config: %w", err)
+	}
+	var cfg interface{}
+	if err := json.Unmarshal(cfgBytes, &cfg); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+	return nil
+}
 
-## Kill-switch و autostart
-
-این دو قابلیت هنوز اسکریپت‌های PowerShell موجود در `client/windows/` هستند و در مسیر یک‌کلیکی پایه ادغام نشده‌اند.
-
-## معماری
-
-`Jamshidix.exe → sing-box.exe → TUN → VLESS/REALITY → gateway`
