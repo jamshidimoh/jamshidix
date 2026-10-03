@@ -254,11 +254,12 @@ def main():
     nodes = list(candidates.values())
     with concurrent.futures.ThreadPoolExecutor(max_workers=50) as pool:
         checked = [x for x in pool.map(tcp_probe, nodes) if x]
+    checked.sort(key=lambda x: (x["remote_latency_ms"], x["server"]))
+    checked = checked[:MAX_OUTPUT]
     geolocate_batch(checked)
     for node in checked:
         recompute_priority(node)
     checked.sort(key=lambda x: (-x["priority"], x["remote_latency_ms"], x["server"]))
-    checked = checked[:MAX_OUTPUT]
     if not checked:
         print("remote TCP probing returned no reachable nodes; publishing validated candidates for local preflight")
         checked = nodes[:MAX_OUTPUT]
