@@ -439,3 +439,5 @@ func guiWndProc(hwnd uintptr, m uint32, wParam, lParam uintptr) uintptr {
 	returnValue, _, _ := defWindowProcW.Call(hwnd, uintptr(m), wParam, lParam)
 	return returnValue
 }
+
+// diagnostic trigger
