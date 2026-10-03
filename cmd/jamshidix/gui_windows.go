@@ -248,7 +248,7 @@ func populateSortCombo() {
 		return
 	}
 	sendMessage.Call(appGUI.sortCombo, cbResetContent, 0, 0)
-	for _, mode := range []string{"اولویت", "سرعت", "منطقه", "تازگی"} {
+	for _, mode := range []string{"اولویت", "سرعت", "منطقه"} {
 		sendMessage.Call(appGUI.sortCombo, cbAddString, 0, uintptr(unsafe.Pointer(guiUTF16(mode))))
 	}
 	sendMessage.Call(appGUI.sortCombo, cbSetCurSel, 0, 0)
@@ -294,9 +294,7 @@ func applyGUIFilters() {
 		appGUI.sortMode = "سرعت"
 	case "منطقه":
 		appGUI.sortMode = "منطقه"
-	case "تازگی":
-		appGUI.sortMode = "تازگی"
-	default:
+		default:
 		appGUI.sortMode = "اولویت"
 	}
 	r := comboText(appGUI.regionCombo)
