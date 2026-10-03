@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import base64
 import concurrent.futures
 import json
 import os
@@ -35,7 +36,7 @@ SID_RE = re.compile(r"^([0-9a-fA-F]{2}){0,8}$")
 def get_text(url):
     req = urllib.request.Request(url, headers={"User-Agent": "JamshidixCollector/0.3"})
     with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-        return r.read(8_000_000).decode("utf-8", "replace")
+        return r.read(20_000_000).decode("utf-8", "replace")
 
 
 def discover_latest_text_page(base_url):
@@ -78,6 +79,21 @@ def infer_region(name, host, sni):
         if re.search(pattern, text):
             return code
     return ""
+
+def candidate_lines(blob):
+    lines = blob.splitlines()
+    for line in lines:
+        yield line
+    compact = "".join(lines).strip()
+    if len(compact) >= 40:
+        try:
+            padded = compact + "=" * (-len(compact) % 4)
+            decoded = base64.b64decode(padded, validate=True).decode("utf-8", "ignore")
+            if "vless://" in decoded:
+                for line in decoded.splitlines():
+                    yield line
+        except Exception:
+            pass
 
 def parse_vless(line, source):
     m = re.search(r"(vless://[^\s'\"<>]+)", line.strip())
@@ -174,8 +190,7 @@ def main():
 
     candidates = {}
     for source, blob in raw_blobs:
-        lines = blob.splitlines() if "\n" in blob else [blob]
-        for line in lines:
+        for line in candidate_lines(blob):
             node = parse_vless(line, source)
             if node:
                 candidates[node["id"]] = node
