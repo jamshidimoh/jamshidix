@@ -1,36 +1,9 @@
-# Jamshidix.exe
+`Jamshidix.exe` is the Windows desktop client.
 
-## اجرای یک‌کلیکی
+On normal launch it opens the native GUI, automatically requests Administrator privileges for TUN operation, refreshes the free public node directory, and lets the user filter by region or sort by priority, speed, region, or freshness.
 
-1. لینک `vless://...` را کپی کنید.
-2. روی `Jamshidix.exe` دوبارکلیک کنید.
+The client keeps the last valid directory in `%ProgramData%\\Jamshidix\\directory.json` and tries multiple remote mirrors before falling back to the local cache.
 
-ترتیب منبع کانفیگ:
-1. لینک جدید در کلیپ‌بورد (اگر با لینک ذخیره‌شده فرق داشته باشد)
-2. `%ProgramData%\Jamshidix\client.json` موجود
-3. `link.txt` / `vless.txt` / `client.json` کنار EXE
+Advanced CLI commands remain available for diagnostics: `status`, `stop`, `import`, `config`, `check`, `run`, `autostart`, and `uninstall`.
 
-کلیک دوم وقتی تونل فعال است، پیشنهاد قطع اتصال می‌دهد.
-
-## نسخه‌ها
-
-- `Jamshidix.exe` (release): sing-box داخل فایل است، بدون دانلود.
-- `Jamshidix-lite.exe` (CI): بدون sing-box؛ در اولین اجرا از GitHub می‌گیرد و SHA-256 را چک می‌کند.
-
-## دستورها
-
-```
-Jamshidix.exe status | stop | version | check | run | install
-Jamshidix.exe import <vless://...> | --clipboard | --file <path>
-Jamshidix.exe config --server-ip IP --uuid UUID --public-key KEY --short-id ID --handshake-host HOST [--port 443]
-Jamshidix.exe autostart on|off
-Jamshidix.exe uninstall
-```
-
-## توسعه
-
-- منطق parse/render لینک پلتفرم‌مستقل است و در `link_test.go` تست می‌شود.
-- `SINGBOX_BIN=/path/sing-box go test ./cmd/jamshidix` کانفیگ تولیدشده را با parser واقعی چک می‌کند.
-- دو نسخه از template کلاینت وجود دارد (`config/` و `assets/`)؛ تست `TestTemplateCopiesInSync` یکسان بودنشان را تضمین می‌کند.
-
-`Jamshidix.exe → sing-box.exe → TUN → VLESS/REALITY → gateway`
+Public nodes are untrusted infrastructure. A node passing TCP checks is not guaranteed to be reachable from every local network or to be safe to use for sensitive traffic.
