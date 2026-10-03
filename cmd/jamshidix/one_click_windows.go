@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -187,6 +188,10 @@ func startDetached() error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	if err := os.WriteFile(pidPath(), []byte(strconv.FormatUint(uint64(cmd.Process.Pid), 10)), 0o600); err != nil {
+		_ = cmd.Process.Kill()
+		return err
+	}
 	return cmd.Process.Release()
 }
 
@@ -217,18 +222,35 @@ func probeInternet() bool {
 	return false
 }
 
+func singBoxPID() (int, bool) {
+	b, err := os.ReadFile(pidPath())
+	if err != nil {
+		return 0, false
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil || pid <= 0 {
+		return 0, false
+	}
+	return pid, true
+}
+
 func isSingBoxRunning() bool {
-	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq sing-box.exe", "/FO", "CSV", "/NH")
+	pid, ok := singBoxPID()
+	if !ok {
+		return false
+	}
+	cmd := exec.Command("tasklist", "/FI", fmt.Sprintf("PID eq %d", pid), "/FO", "CSV", "/NH")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWin}
 	out, err := cmd.CombinedOutput()
-	return err == nil && strings.Contains(strings.ToLower(string(out)), `"sing-box.exe"`)
+	return err == nil && strings.Contains(strings.ToLower(string(out)), "sing-box.exe")
 }
 
 func stopSingBox() error {
-	if !isSingBoxRunning() {
+	pid, ok := singBoxPID()
+	if !ok {
 		return nil
 	}
-	cmd := exec.Command("taskkill", "/IM", "sing-box.exe", "/F", "/T")
+	cmd := exec.Command("taskkill", "/PID", strconv.Itoa(pid), "/F", "/T")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWin}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -237,6 +259,7 @@ func stopSingBox() error {
 		}
 		return err
 	}
+	_ = os.Remove(pidPath())
 	return nil
 }
 
