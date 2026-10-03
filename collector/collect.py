@@ -59,8 +59,8 @@ def infer_region(name, host, sni):
         if flag in text:
             return code
     patterns = [
-        (r"\b(germany|de|fra|france)\b", "DE/FR"),
-        (r"\b(netherlands|nl|amsterdam)\b", "NL"),
+        (r"\b(germany|berlin|frankfurt)\b", "DE"),
+        (r"\b(netherlands|amsterdam|rotterdam)\b", "NL"),
         (r"\b(france|paris)\b", "FR"),
         (r"\b(uk|united.?kingdom|london|gb)\b", "GB"),
         (r"\b(us|usa|america|new.?york|los.?angeles)\b", "US"),
