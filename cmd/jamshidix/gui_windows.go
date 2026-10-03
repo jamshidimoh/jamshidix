@@ -2,6 +2,7 @@
 
 package main
 
+// GUI source for the desktop client.
 import (
 	"fmt"
 	"net/http"
