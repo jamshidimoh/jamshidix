@@ -18,28 +18,28 @@ import (
 )
 
 type Node struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	Country          string `json:"country,omitempty"`
-	City             string `json:"city,omitempty"`
-	Region           string `json:"region,omitempty"`
-	Priority         int    `json:"priority"`
-	Source           string `json:"source"`
-	Server           string `json:"server"`
-	Port             int    `json:"port"`
-	UUID             string `json:"uuid"`
-	PublicKey        string `json:"public_key"`
-	ShortID          string `json:"short_id"`
-	SNI              string `json:"sni"`
-	Flow             string `json:"flow"`
-	Fingerprint      string `json:"fingerprint"`
-	Protocol         string `json:"protocol"`
-	Transport        string `json:"transport"`
-	RemoteOK         bool   `json:"remote_ok"`
-	RemoteLatencyMs  int    `json:"remote_latency_ms,omitempty"`
-	FetchedAt        string `json:"fetched_at"`
-	LocalOK          bool   `json:"-"`
-	LocalLatencyMs   int    `json:"-"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Country         string `json:"country,omitempty"`
+	City            string `json:"city,omitempty"`
+	Region          string `json:"region,omitempty"`
+	Priority        int    `json:"priority"`
+	Source          string `json:"source"`
+	Server          string `json:"server"`
+	Port            int    `json:"port"`
+	UUID            string `json:"uuid"`
+	PublicKey       string `json:"public_key"`
+	ShortID         string `json:"short_id"`
+	SNI             string `json:"sni"`
+	Flow            string `json:"flow"`
+	Fingerprint     string `json:"fingerprint"`
+	Protocol        string `json:"protocol"`
+	Transport       string `json:"transport"`
+	RemoteOK        bool   `json:"remote_ok"`
+	RemoteLatencyMs int    `json:"remote_latency_ms,omitempty"`
+	FetchedAt       string `json:"fetched_at"`
+	LocalOK         bool   `json:"-"`
+	LocalLatencyMs  int    `json:"-"`
 }
 
 type Directory struct {
@@ -64,7 +64,9 @@ const directoryCacheName = "directory.json"
 //go:embed assets/directory.seed.json
 var embeddedDirectorySeed []byte
 
-func directoryCachePath() string { return filepath.Join(dataDir, directoryCacheName) }
+func directoryCachePath() string {
+	return filepath.Join(dataDir, directoryCacheName)
+}
 
 func decodeDirectory(b []byte) (Directory, error) {
 	var d Directory
@@ -74,18 +76,31 @@ func decodeDirectory(b []byte) (Directory, error) {
 	if d.Version < 1 {
 		return Directory{}, errors.New("unsupported directory version")
 	}
-	valid := d.Nodes[:0]
-	seen := make(map[string]bool)
+
+	valid := make([]Node, 0, len(d.Nodes))
+	seen := make(map[string]struct{}, len(d.Nodes))
 	for _, n := range d.Nodes {
-		if n.ID == "" || n.Server == "" || n.Port < 1 || n.Port > 65535 ||
-			n.UUID == "" || n.PublicKey == "" || n.ShortID == "" || n.SNI == "" {
+		if n.Flow == "" {
+			n.Flow = defaultFlow
+		}
+		if n.Fingerprint == "" {
+			n.Fingerprint = defaultFingerprint
+		}
+		p := Profile{
+			Server: n.Server, Port: n.Port, UUID: n.UUID, PublicKey: n.PublicKey,
+			ShortID: n.ShortID, SNI: n.SNI, Flow: n.Flow, Fingerprint: n.Fingerprint,
+		}
+		if err := p.Validate(); err != nil {
 			continue
 		}
-		key := strings.Join([]string{n.Server, strconv.Itoa(n.Port), n.UUID, n.PublicKey, n.ShortID, n.SNI}, "|")
-		if seen[key] {
+		key := strings.Join([]string{
+			strings.ToLower(n.Server), strconv.Itoa(n.Port), strings.ToLower(n.UUID),
+			n.PublicKey, strings.ToLower(n.ShortID), strings.ToLower(n.SNI),
+		}, "|")
+		if _, ok := seen[key]; ok {
 			continue
 		}
-		seen[key] = true
+		seen[key] = struct{}{}
 		valid = append(valid, n)
 	}
 	d.Nodes = valid
@@ -99,15 +114,15 @@ func loadDirectory() (Directory, error) {
 		}
 	}
 	if len(embeddedDirectorySeed) > 0 {
-		if d, err := decodeDirectory(embeddedDirectorySeed); err == nil {
+		if d, err := decodeDirectory(embeddedDirectorySeed); err == nil && len(d.Nodes) > 0 {
 			return d, nil
 		}
 	}
 	return Directory{}, errors.New("no server directory is available")
 }
 
-func fetchDirectory(url string) (Directory, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func fetchDirectory(rawURL string) (Directory, error) {
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return Directory{}, err
 	}
@@ -163,65 +178,44 @@ func refreshDirectory() (Directory, string, error) {
 }
 
 func nodeRegion(n Node) string {
-	if n.Region != "" { return strings.ToUpper(n.Region) }
-	if n.Country != "" { return strings.ToUpper(n.Country) }
-	s := strings.ToLower(n.Source + " " + n.Name + " " + n.SNI)
-	pairs := []struct{ key, region string }{
-		{"russia","RU"},{"ru-","RU"},{"germany","DE"},{"de-","DE"},
-		{"france","FR"},{"fr-","FR"},{"netherlands","NL"},{"nl-","NL"},
-		{"finland","FI"},{"fi-","FI"},{"united kingdom","GB"},{"uk-","GB"},
-		{"usa","US"},{"us-","US"},{"america","US"},{"canada","CA"},{"turkey","TR"},{"tr-","TR"},
+	if strings.TrimSpace(n.Region) != "" {
+		return strings.ToUpper(strings.TrimSpace(n.Region))
 	}
-	for _, p := range pairs { if strings.Contains(s, p.key) { return p.region } }
+	if strings.TrimSpace(n.Country) != "" {
+		return strings.ToUpper(strings.TrimSpace(n.Country))
+	}
 	return "??"
 }
 
 func nodePriority(n Node) int {
-	if n.Priority > 0 { return n.Priority }
-	score := 20
-	if n.RemoteOK { score += 30 }
-	if n.LocalOK { score += 40 }
-	lat := n.LocalLatencyMs
-	if lat <= 0 { lat = n.RemoteLatencyMs }
-	switch { case lat > 0 && lat <= 80: score += 10; case lat <= 150 && lat > 0: score += 7; case lat <= 250 && lat > 0: score += 4; case lat > 250: score++ }
-	if score > 100 { score = 100 }
-	return score
-}
-
-func sortNodes(nodes []Node, mode, region string) []Node {
-	filtered := make([]Node, 0, len(nodes))
-	for _, n := range nodes { if region == "" || region == "ALL" || nodeRegion(n) == region { filtered = append(filtered, n) } }
-	sort.SliceStable(filtered, func(i,j int) bool {
-		a,b := filtered[i], filtered[j]
-		switch mode {
-		case "SPEED":
-			al,bl := a.LocalLatencyMs,b.LocalLatencyMs; if al <= 0 { al = 1<<30 }; if bl <= 0 { bl = 1<<30 }
-			if al != bl { return al < bl }
-		case "REGION":
-			ra,rb := nodeRegion(a),nodeRegion(b); if ra != rb { return ra < rb }
-		case "PRIORITY":
-			pa,pb := nodePriority(a),nodePriority(b); if pa != pb { return pa > pb }
-		}
-		return a.Name < b.Name
-	})
-	return filtered
-}
-
-func probeNode(n Node) (bool, int) {
-	start := time.Now()
-	host, port := net.JoinHostPort(n.Server, strconv.Itoa(n.Port))
-	conn, err := net.DialTimeout("tcp", host, 2200*time.Millisecond)
-	if err != nil {
-		return false, -1
+	if n.Priority > 0 {
+		return n.Priority
 	}
-	_ = conn.Close()
-	return true, int(time.Since(start).Milliseconds())
-}
-
-func nodeRegion(n Node) string {
-	if strings.TrimSpace(n.Region) != "" { return n.Region }
-	if strings.TrimSpace(n.Country) != "" { return n.Country }
-	return "نامشخص"
+	score := 20
+	if n.RemoteOK {
+		score += 30
+	}
+	if n.LocalOK {
+		score += 40
+	}
+	latency := n.LocalLatencyMs
+	if latency <= 0 {
+		latency = n.RemoteLatencyMs
+	}
+	switch {
+	case latency > 0 && latency <= 80:
+		score += 10
+	case latency <= 150 && latency > 0:
+		score += 7
+	case latency <= 250 && latency > 0:
+		score += 4
+	case latency > 250:
+		score++
+	}
+	if score > 100 {
+		score = 100
+	}
+	return score
 }
 
 func applyNodeView(d Directory, sortMode, region string) Directory {
@@ -231,35 +225,67 @@ func applyNodeView(d Directory, sortMode, region string) Directory {
 			filtered = append(filtered, n)
 		}
 	}
+
 	sort.SliceStable(filtered, func(i, j int) bool {
 		a, b := filtered[i], filtered[j]
 		switch sortMode {
 		case "سرعت":
-			if a.LocalOK != b.LocalOK { return a.LocalOK }
-			if a.LocalOK && b.LocalOK && a.LocalLatencyMs != b.LocalLatencyMs { return a.LocalLatencyMs < b.LocalLatencyMs }
-			if a.RemoteOK != b.RemoteOK { return a.RemoteOK }
-			return a.Priority > b.Priority
+			al, bl := a.LocalLatencyMs, b.LocalLatencyMs
+			if al <= 0 {
+				al = 1 << 30
+			}
+			if bl <= 0 {
+				bl = 1 << 30
+			}
+			if al != bl {
+				return al < bl
+			}
+			if a.RemoteOK != b.RemoteOK {
+				return a.RemoteOK
+			}
 		case "منطقه":
-			ar, br := nodeRegion(a), nodeRegion(b)
-			if ar != br { return ar < br }
-			return a.Priority > b.Priority
+			ra, rb := nodeRegion(a), nodeRegion(b)
+			if ra != rb {
+				return ra < rb
+			}
+			if nodePriority(a) != nodePriority(b) {
+				return nodePriority(a) > nodePriority(b)
+			}
 		case "تازگی":
-			return a.FetchedAt > b.FetchedAt
+			if a.FetchedAt != b.FetchedAt {
+				return a.FetchedAt > b.FetchedAt
+			}
 		default:
-			if a.LocalOK != b.LocalOK { return a.LocalOK }
-			if a.Priority != b.Priority { return a.Priority > b.Priority }
-			if a.RemoteLatencyMs != b.RemoteLatencyMs { return a.RemoteLatencyMs < b.RemoteLatencyMs }
-			return a.Name < b.Name
+			pa, pb := nodePriority(a), nodePriority(b)
+			if pa != pb {
+				return pa > pb
+			}
+			if a.LocalOK != b.LocalOK {
+				return a.LocalOK
+			}
 		}
+		return a.Name < b.Name
 	})
 	d.Nodes = filtered
 	return d
+}
+
+func probeNode(n Node) (bool, int) {
+	start := time.Now()
+	endpoint := net.JoinHostPort(n.Server, strconv.Itoa(n.Port))
+	conn, err := net.DialTimeout("tcp", endpoint, 2200*time.Millisecond)
+	if err != nil {
+		return false, -1
+	}
+	_ = conn.Close()
+	return true, int(time.Since(start).Milliseconds())
 }
 
 func decorateLocalReachability(d Directory) Directory {
 	if len(d.Nodes) == 0 {
 		return d
 	}
+
 	indices := make([]int, len(d.Nodes))
 	for i := range indices {
 		indices[i] = i
@@ -269,13 +295,14 @@ func decorateLocalReachability(d Directory) Directory {
 		if a.RemoteOK != b.RemoteOK {
 			return a.RemoteOK
 		}
-		if a.RemoteLatencyMs == 0 {
+		la, lb := a.RemoteLatencyMs, b.RemoteLatencyMs
+		if la <= 0 {
 			return false
 		}
-		if b.RemoteLatencyMs == 0 {
+		if lb <= 0 {
 			return true
 		}
-		return a.RemoteLatencyMs < b.RemoteLatencyMs
+		return la < lb
 	})
 	if len(indices) > 80 {
 		indices = indices[:80]
@@ -296,19 +323,5 @@ func decorateLocalReachability(d Directory) Directory {
 		}()
 	}
 	wg.Wait()
-
-	sort.SliceStable(d.Nodes, func(i, j int) bool {
-		a, b := d.Nodes[i], d.Nodes[j]
-		if a.LocalOK != b.LocalOK {
-			return a.LocalOK
-		}
-		if a.LocalOK && b.LocalOK && a.LocalLatencyMs != b.LocalLatencyMs {
-			return a.LocalLatencyMs < b.LocalLatencyMs
-		}
-		if a.RemoteOK != b.RemoteOK {
-			return a.RemoteOK
-		}
-		return a.Name < b.Name
-	})
 	return d
 }
