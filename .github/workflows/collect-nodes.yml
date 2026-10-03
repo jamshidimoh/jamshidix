@@ -30,10 +30,16 @@ jobs:
         run: |
           git config user.name "jamshidix-bot"
           git config user.email "jamshidix-bot@users.noreply.github.com"
-          if git diff --quiet -- directory/nodes.json cmd/jamshidix/assets/directory.seed.json; then
+          if git diff --quiet -- directory/nodes.json; then
             echo "Directory unchanged."
             exit 0
           fi
-          git add directory/nodes.json cmd/jamshidix/assets/directory.seed.json
+          git add directory/nodes.json
           git commit -m "chore: refresh public free node directory"
-          git push
+          for attempt in 1 2 3; do
+            if git push; then exit 0; fi
+            git fetch origin main
+            git rebase origin/main
+          done
+          echo "Unable to publish directory after retries." >&2
+          exit 1
