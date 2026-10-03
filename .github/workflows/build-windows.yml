@@ -43,6 +43,27 @@ jobs:
           go vet ./...
           go test ./... -count=1
 
+      - name: Prepare embedded emergency directory seed
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          src = Path("directory/nodes.json")
+          dst = Path("cmd/jamshidix/assets/directory.seed.json")
+          seed = {"version": 1, "generated_at": "", "nodes": [], "sources": []}
+          if src.exists():
+              data = json.loads(src.read_text(encoding="utf-8"))
+              seed = {
+                  "version": data.get("version", 1),
+                  "generated_at": data.get("generated_at", ""),
+                  "nodes": data.get("nodes", [])[:30],
+                  "sources": data.get("sources", []),
+              }
+          dst.write_text(json.dumps(seed, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          print(f"embedded seed nodes: {len(seed['nodes'])}")
+          PY
+
       - name: Fetch pinned official sing-box archive
         shell: bash
         run: |
