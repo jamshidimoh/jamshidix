@@ -117,10 +117,11 @@ jobs:
             exit 1
           }
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Release $RELEASE_TAG already exists."
-            exit 0
+            echo "Release $RELEASE_TAG exists; refreshing assets."
+            gh release upload "$RELEASE_TAG" dist/Jamshidix.exe dist/Jamshidix.exe.sha256 --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/Jamshidix.exe dist/Jamshidix.exe.sha256 \
+              --title "Jamshidix ${RELEASE_TAG#v}" \
+              --notes "Self-contained Windows GUI client with free public server directory, local preflight, region filtering and priority/speed sorting." \
+              --latest
           fi
-          gh release create "$RELEASE_TAG" dist/Jamshidix.exe dist/Jamshidix.exe.sha256 \
-            --title "Jamshidix ${RELEASE_TAG#v}" \
-            --notes "Self-contained Windows GUI client with free public server directory, local preflight, region filtering and priority/speed sorting." \
-            --latest
