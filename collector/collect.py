@@ -150,6 +150,9 @@ def main():
         checked = [x for x in pool.map(tcp_probe, nodes) if x]
     checked.sort(key=lambda x: (x["remote_latency_ms"], x["server"]))
     checked = checked[:MAX_OUTPUT]
+    if not checked:
+        print("remote TCP probing returned no reachable nodes; publishing validated candidates for local preflight")
+        checked = nodes[:MAX_OUTPUT]
 
     now = datetime.now(timezone.utc).isoformat()
     directory = {
@@ -165,7 +168,7 @@ def main():
     SEED.write_text(data, encoding="utf-8")
     print(f"published nodes: {len(checked)}")
     if len(checked) == 0:
-        raise SystemExit("no remotely reachable VLESS/REALITY nodes found")
+        raise SystemExit("no validated VLESS/REALITY candidates found")
 
 
 if __name__ == "__main__":
