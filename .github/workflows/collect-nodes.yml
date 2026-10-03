@@ -28,18 +28,54 @@ jobs:
       - name: Publish directory
         shell: bash
         run: |
+          set -euo pipefail
+          test -s directory/nodes.json
+          CANDIDATE="$RUNNER_TEMP/nodes.json"
+          cp directory/nodes.json "$CANDIDATE"
+
           git config user.name "jamshidix-bot"
           git config user.email "jamshidix-bot@users.noreply.github.com"
-          if git diff --quiet -- directory/nodes.json && git diff --cached --quiet -- directory/nodes.json && test -f directory/nodes.json && git ls-files --error-unmatch directory/nodes.json >/dev/null 2>&1; then
-            echo "Directory unchanged."
-            exit 0
-          fi
-          git add directory/nodes.json
-          git commit -m "chore: refresh public free node directory"
-          for attempt in 1 2 3; do
-            if git push; then exit 0; fi
-            git fetch origin main
-            git rebase origin/main
+
+          for attempt in 1 2 3 4 5; do
+            git fetch --no-tags origin main
+            git reset --hard origin/main
+
+            if test -s directory/nodes.json; then
+              CURRENT_TS="$(python3 - <<'PY'
+import json
+from pathlib import Path
+p = Path("directory/nodes.json")
+try:
+    print(json.loads(p.read_text(encoding="utf-8")).get("generated_at", ""))
+except Exception:
+    print("")
+PY
+)"
+              CANDIDATE_TS="$(python3 - <<'PY'
+import json, os
+print(json.loads(open(os.environ["CANDIDATE"], encoding="utf-8").read()).get("generated_at", ""))
+PY
+)"
+              if [ -n "$CURRENT_TS" ] && [ -n "$CANDIDATE_TS" ] && [ "$CURRENT_TS" > "$CANDIDATE_TS" ]; then
+                echo "A newer directory is already published; discarding older candidate."
+                exit 0
+              fi
+            fi
+
+            cp "$CANDIDATE" directory/nodes.json
+            if git diff --quiet -- directory/nodes.json; then
+              echo "Directory unchanged."
+              exit 0
+            fi
+
+            git add directory/nodes.json
+            git commit -m "chore: refresh public free node directory"
+            if git push origin HEAD:main; then
+              echo "Directory published."
+              exit 0
+            fi
+            echo "Publish race detected; retrying against latest main."
           done
+
           echo "Unable to publish directory after retries." >&2
           exit 1
