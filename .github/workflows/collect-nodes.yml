@@ -43,12 +43,7 @@ jobs:
 
             if test -s directory/nodes.json; then
               current_ts="$(python3 -c 'import json; print(json.load(open("directory/nodes.json", encoding="utf-8")).get("generated_at", ""))')"
-              candidate_ts="$(python3 - "$candidate" <<'PY'
-import json, sys
-with open(sys.argv[1], encoding="utf-8") as f:
-    print(json.load(f).get("generated_at", ""))
-PY
-)"
+              candidate_ts="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("generated_at", ""))' "$candidate")"
               if [ -n "$current_ts" ] && [ -n "$candidate_ts" ] && [ "$current_ts" > "$candidate_ts" ]; then
                 echo "A newer directory is already published."
                 exit 0
