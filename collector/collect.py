@@ -13,6 +13,7 @@ from pathlib import Path
 SOURCES = [
     ("ebrasha", "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/refs/heads/main/vless_configs.txt"),
     ("baarcuda", "https://raw.githubusercontent.com/Baarcuda/vpn-configs/master/top100-vless.txt"),
+    ("radikal-verified", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/verified/configs.txt"),
     ("radikal", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/protocols/vless.txt"),
     ("morpheus", "https://raw.githubusercontent.com/morpheusadam/v2ray-config/main/subs/bundles/vless.txt"),
 ]
@@ -49,7 +50,7 @@ def discover_latest_text_page(base_url):
     return sorted(dated, reverse=True)[0][1]
 
 
-SOURCE_PRIORITY = {"ebrasha": 90, "baarcuda": 86, "radikal": 82, "morpheus": 84, "freevlessnode": 78, "vlessnode": 80}
+SOURCE_PRIORITY = {"radikal-verified": 95, "ebrasha": 90, "baarcuda": 86, "morpheus": 84, "radikal": 82, "freevlessnode": 78, "vlessnode": 80}
 
 def infer_region(name, host, sni):
     text = f"{name} {host} {sni}".lower()
