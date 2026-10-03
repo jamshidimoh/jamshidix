@@ -40,6 +40,8 @@ type Node struct {
 	FetchedAt        string `json:"fetched_at"`
 	LocalOK          bool   `json:"-"`
 	LocalLatencyMs   int    `json:"-"`
+	Priority         int    `json:"priority,omitempty"`
+	Region           string `json:"region,omitempty"`
 }
 
 type Directory struct {
@@ -160,6 +162,51 @@ func refreshDirectory() (Directory, string, error) {
 		return d, mirror, nil
 	}
 	return Directory{}, "", fmt.Errorf("all directory mirrors failed: %s", strings.Join(errs, " | "))
+}
+
+func nodeRegion(n Node) string {
+	if n.Region != "" { return strings.ToUpper(n.Region) }
+	if n.Country != "" { return strings.ToUpper(n.Country) }
+	s := strings.ToLower(n.Source + " " + n.Name + " " + n.SNI)
+	pairs := []struct{ key, region string }{
+		{"russia","RU"},{"ru-","RU"},{"germany","DE"},{"de-","DE"},
+		{"france","FR"},{"fr-","FR"},{"netherlands","NL"},{"nl-","NL"},
+		{"finland","FI"},{"fi-","FI"},{"united kingdom","GB"},{"uk-","GB"},
+		{"usa","US"},{"us-","US"},{"america","US"},{"canada","CA"},{"turkey","TR"},{"tr-","TR"},
+	}
+	for _, p := range pairs { if strings.Contains(s, p.key) { return p.region } }
+	return "??"
+}
+
+func nodePriority(n Node) int {
+	if n.Priority > 0 { return n.Priority }
+	score := 20
+	if n.RemoteOK { score += 30 }
+	if n.LocalOK { score += 40 }
+	lat := n.LocalLatencyMs
+	if lat <= 0 { lat = n.RemoteLatencyMs }
+	switch { case lat > 0 && lat <= 80: score += 10; case lat <= 150 && lat > 0: score += 7; case lat <= 250 && lat > 0: score += 4; case lat > 250: score++ }
+	if score > 100 { score = 100 }
+	return score
+}
+
+func sortNodes(nodes []Node, mode, region string) []Node {
+	filtered := make([]Node, 0, len(nodes))
+	for _, n := range nodes { if region == "" || region == "ALL" || nodeRegion(n) == region { filtered = append(filtered, n) } }
+	sort.SliceStable(filtered, func(i,j int) bool {
+		a,b := filtered[i], filtered[j]
+		switch mode {
+		case "SPEED":
+			al,bl := a.LocalLatencyMs,b.LocalLatencyMs; if al <= 0 { al = 1<<30 }; if bl <= 0 { bl = 1<<30 }
+			if al != bl { return al < bl }
+		case "REGION":
+			ra,rb := nodeRegion(a),nodeRegion(b); if ra != rb { return ra < rb }
+		case "PRIORITY":
+			pa,pb := nodePriority(a),nodePriority(b); if pa != pb { return pa > pb }
+		}
+		return a.Name < b.Name
+	})
+	return filtered
 }
 
 func probeNode(n Node) (bool, int) {
