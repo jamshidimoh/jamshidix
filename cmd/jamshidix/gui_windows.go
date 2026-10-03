@@ -132,9 +132,7 @@ func setGuiFont(hwnd uintptr) {
 func runGUI() error {
 	if !isAdmin() {
 		if err := relaunchElevatedArgs([]string{"--gui-elevated"}); err != nil {
-			msg("اجرای Jamshidix نیازمند دسترسی Administrator است.
-
-"+err.Error(), mbError)
+			msg("اجرای Jamshidix نیازمند دسترسی Administrator است.\n\n"+err.Error(), mbError)
 			return err
 		}
 		return nil
